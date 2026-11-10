@@ -39,11 +39,15 @@ hovered: ?kosm.Modifier = null,
 /// One whose path equals, contains or lies inside a set color's or another extra's fails the
 /// apply. Prefs have their own, `Profile.extra`. Default: none.
 extra: []const kosm.Setting = &.{},
+/// Zen's logo in the theme's colors, for user styles to show. null: not written. `from`: the
+/// background and foreground.
+logo: ?Logo = null,
 /// The about:config prefs every profile gets. null: no prefs, only the CSS, e.g. on a
 /// machine without Zen. `from`: `Profile.from(theme)` for every profile.
 profile: ?Profile = null,
 
 pub const Containers = @import("Containers.zig");
+pub const Logo = @import("Logo.zig");
 pub const Profile = @import("Profile.zig");
 
 /// Colors from the theme.
@@ -67,15 +71,18 @@ pub fn from(theme: kosm.Theme) App {
             .purple = palette.purple,
         },
         .hovered = theme.variations.state.hovered,
+        .logo = .{ .background = background, .foreground = if (theme.mode == .dark) palette.white else palette.black },
         .profile = .from(theme),
     };
 }
 
-/// Writes every set color as a `--kosm-*` custom property, then the prefs of `profile`.
+/// Writes every set color as a `--kosm-*` custom property, then the logo, then the prefs of
+/// `profile`.
 pub fn apply(self: App, output: *kosm.Output) !void {
     const colors = try kosm.Setting.leaves(output.allocator, try self.properties(output.allocator));
     const all = try kosm.Setting.withExtras(output, self.file, colors, self.extra, .{});
     try output.generate(.{ .file = self.file, .lang = "css", .format = self.format }, try kosm.Setting.tree(output.allocator, all));
+    if (self.logo) |logo| try logo.apply(output);
     if (self.profile) |profile| try profile.apply(output);
 }
 
@@ -145,6 +152,12 @@ test "apply writes every color as a --kosm custom property" {
     try testing.expect(std.mem.indexOf(u8, written, "\n  --kosm-button: #082e3fff;\n  --kosm-button-hovered: #") != null);
     try testing.expect(std.mem.indexOf(u8, written, "\n  --kosm-containers-pink: #4d74afff;\n") != null);
     try testing.expect(std.mem.endsWith(u8, written, "\n}\n"));
+
+    const logo = plan.files.items[1];
+    try testing.expectEqualStrings("~/.config/ZenBrowser/ZenLogo.svg", logo.display_path);
+    try testing.expect(std.mem.indexOf(u8, logo.new, "<rect width=\"1024\" height=\"1024\" rx=\"225\" fill=\"#041c26ff\"/>") != null);
+    try testing.expectEqual(2, std.mem.count(u8, logo.new, "stroke=\"#a3c5ccff\""));
+    try testing.expectEqual(0, std.mem.count(u8, logo.new, "kosm."));
 }
 
 test "App{} writes an empty :root and no prefs, and without hovered no hover color is derived" {

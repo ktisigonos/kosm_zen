@@ -23,6 +23,8 @@
         "root.zig",
         "App.zig",
         "Containers.zig",
+        "Logo.zig",
+        "logo.svg",
         "Profile.zig",
         "Prefs.zig",
         "prefs",

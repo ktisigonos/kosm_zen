@@ -41,6 +41,7 @@ color goes:
 | `containers.pink` | `--kosm-containers-pink` | null; `from`: the wheel's pink |
 | `containers.purple` | `--kosm-containers-purple` | null; `from`: the wheel's purple |
 | `hovered` | | null: nothing derived; `from`: the theme's `state.hovered` |
+| `logo` | | null: not written; `from`: Zen's logo at `~/.config/ZenBrowser/ZenLogo.svg` (`file`, `format`, `background`, `foreground`), for a user style to show, e.g. on the new tab page |
 | `profile` | | null: no prefs, only the CSS; `from`: `Profile.from(theme)` |
 | `extra` | | `&.{}`: custom properties the app doesn't cover, by path |
 

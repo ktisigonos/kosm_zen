@@ -49,7 +49,7 @@ pub const Profile = @import("Profile.zig");
 /// Colors from the theme.
 pub fn from(theme: kosm.Theme) App {
     const palette = theme.palette;
-    const background = if (theme.mode == .dark) palette.black else palette.white;
+    const background = theme.asBackground(if (theme.mode == .dark) palette.black else palette.white);
     return .{
         .foreground = if (theme.mode == .dark) palette.white else palette.black,
         .accent = palette.cyan,
@@ -217,4 +217,18 @@ test "extras follow the colors as custom properties, and a clash fails naming bo
     app.extra = &.{.{ .path = "kosm.containers", .value = .{ .raw = "none" } }};
     try testing.expectError(error.AppFailed, app.apply(&output));
     try testing.expectEqualStrings("extra 'kosm.containers' and setting 'kosm.containers.blue' write the same key, or one inside the other; keep one", diagnostics.message());
+}
+
+test "the theme's background alpha reaches the background and the button raised from it, and a set color wins" {
+    const palette: kosm.Palette = .{ .black = kosm.hex("041c26"), .white = kosm.hex("a3c5cc") };
+    var theme = kosm.Theme.from(palette, .dark);
+    try testing.expectEqual(1, from(theme).background.?.alpha);
+
+    theme.background_alpha = 0.5;
+    var app = from(theme);
+    try testing.expectEqualStrings("#041c2680", app.background.?.hex8().slice());
+    try testing.expectEqual(0.5, app.button.?.alpha);
+    try testing.expectEqual(1, app.foreground.?.alpha);
+    app.background = kosm.hex("000000");
+    try testing.expectEqual(1, app.background.?.alpha);
 }

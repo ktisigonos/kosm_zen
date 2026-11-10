@@ -28,7 +28,7 @@ color goes:
 | `format` | | `.{}`: the CSS adapter's `#rrggbbaa`, then 6 float decimals |
 | `foreground` | `--kosm-foreground` | null; `from`: white, black in light mode |
 | `accent` | `--kosm-accent` | null; `from`: cyan |
-| `background` | `--kosm-background` | null; `from`: black, white in light mode |
+| `background` | `--kosm-background` | null; `from`: black, white in light mode, at the theme's `background_alpha` |
 | `button` | `--kosm-button` | null; `from`: `surface.raised` of `background` |
 | `button_hovered` | `--kosm-button-hovered` | null: `hovered` of `button` when both are set |
 | `border` | `--kosm-border` | null; `from`: cyan |

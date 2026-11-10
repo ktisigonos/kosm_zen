@@ -8,7 +8,10 @@ zen: Zen = .{},
 browser: Browser = .{},
 /// `toolkit.*`: Firefox's toolkit prefs.
 toolkit: Toolkit = .{},
+/// `mod.*`: the prefs of Zen mods.
+mod: Mod = .{},
 
 pub const Zen = @import("prefs/Zen.zig");
 pub const Browser = @import("prefs/Browser.zig");
 pub const Toolkit = @import("prefs/Toolkit.zig");
+pub const Mod = @import("prefs/Mod.zig");

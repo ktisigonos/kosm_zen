@@ -120,8 +120,11 @@ its own value is the group's `value` field: `prefs.zen.theme.gradient.value` is
 | `zen.view.use_single_toolbar` | `zen.view.use-single-toolbar` | null (Zen: true) |
 | `zen.view.show_newtab_button_top` | `zen.view.show-newtab-button-top` | null (Zen: true) |
 | `zen.view.sidebar_expanded` | `zen.view.sidebar-expanded` | null (Zen: true) |
-| `zen.widget.linux.transparency` | `zen.widget.linux.transparency` | null (Zen: false) |
-| `browser.display.background_color` | `browser.display.background_color` | black, white in light mode |
+| `zen.widget.linux.transparency` | `zen.widget.linux.transparency` | null: true while the page background is not opaque (Zen: false) |
+| `browser.display.background_color` | `browser.display.background_color` | black, white in light mode, at the theme's `background_alpha` |
 | `browser.display.foreground_color` | `browser.display.foreground_color` | white, black in light mode |
-| `browser.tabs.allow_transparent_browser` | `browser.tabs.allow_transparent_browser` | null (Firefox: false) |
+| `browser.display.use_document_fonts` | `browser.display.use_document_fonts` (`.never`, `.allowed`) | null (Firefox: `.allowed`); `.never` shows every page in your fontconfig fonts |
+| `browser.tabs.allow_transparent_browser` | `browser.tabs.allow_transparent_browser` | null: true while the page background is not opaque (Firefox: false) |
+| `mod.sameerasw.zen_bg_color_enabled` | `mod.sameerasw.zen_bg_color_enabled` (the Transparent Zen mod) | null: true while the page background is not opaque |
+| `mod.sameerasw.zen_transparency_color` | `mod.sameerasw.zen_transparency_color` | null: the page background while it is not opaque |
 | `toolkit.legacy_user_profile_customizations.stylesheets` | `toolkit.legacyUserProfileCustomizations.stylesheets` | true, which the CSS needs |

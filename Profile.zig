@@ -15,7 +15,8 @@ profiles: []const u8 = "~/.zen/*",
 exclude: []const []const u8 = &.{},
 /// Who owns each `user.js`. Default: `default_target`.
 target: Target = default_target,
-/// How values are spelled. Null fields take the `userjs` adapter's: `#rrggbb`.
+/// How values are spelled. Null fields take the `userjs` adapter's: `#rrggbb`. A null color
+/// format becomes `#rrggbbaa` while the page background is not opaque, so its alpha is kept.
 format: kosm.Format = .{},
 /// The prefs to write, named like about:config (`prefs.zen.theme.accent_color`). Null prefs are
 /// not written; with none set, no profile is looked for or written.
@@ -44,21 +45,23 @@ pub const default_target: Target = .block;
 const block_id = "zen";
 
 /// Prefs from the theme: the accent from cyan, the window scheme from the mode, page
-/// colors from black and white (swapped in light mode), and the profile stylesheets kosm's CSS
-/// needs turned on. Every other pref is left to Zen.
+/// colors from black and white (swapped in light mode), the page background at the theme's
+/// `background_alpha`, and the profile stylesheets kosm's CSS needs turned on. Every other pref
+/// is left to Zen.
 pub fn from(theme: kosm.Theme) Profile {
     const palette = theme.palette;
     var prefs: Prefs = .{};
     prefs.zen.theme.accent_color = palette.cyan;
     prefs.zen.view.window.scheme = if (theme.mode == .dark) .dark else .light;
-    prefs.browser.display.background_color = if (theme.mode == .dark) palette.black else palette.white;
+    prefs.browser.display.background_color = theme.asBackground(if (theme.mode == .dark) palette.black else palette.white);
     prefs.browser.display.foreground_color = if (theme.mode == .dark) palette.white else palette.black;
     prefs.toolkit.legacy_user_profile_customizations.stylesheets = true;
     return .{ .prefs = prefs };
 }
 
 /// Writes the set prefs, then the extras, to the `user.js` of every picked profile.
-pub fn apply(self: Profile, output: *kosm.Output) !void {
+pub fn apply(given: Profile, output: *kosm.Output) !void {
+    const self = given.withDerived();
     const prefs = try self.withExtras(output);
     if (prefs.table.len == 0) return;
     const exclude = try output.allocator.alloc([]const u8, self.exclude.len);
@@ -71,6 +74,22 @@ pub fn apply(self: Profile, output: *kosm.Output) !void {
             .generate => try output.generate(.{ .file = file, .lang = "userjs", .format = self.format }, prefs),
         }
     }
+}
+
+/// The profile with what follows a page background that is not opaque, wherever it is null:
+/// the prefs that let the window be seen through, the Transparent Zen mod's background, and a
+/// color format that keeps alpha.
+fn withDerived(self: Profile) Profile {
+    var profile = self;
+    const background = self.prefs.browser.display.background_color orelse return profile;
+    if (background.alpha >= 1) return profile;
+    const prefs = &profile.prefs;
+    if (prefs.browser.tabs.allow_transparent_browser == null) prefs.browser.tabs.allow_transparent_browser = true;
+    if (prefs.zen.widget.linux.transparency == null) prefs.zen.widget.linux.transparency = true;
+    if (prefs.mod.sameerasw.zen_bg_color_enabled == null) prefs.mod.sameerasw.zen_bg_color_enabled = true;
+    if (prefs.mod.sameerasw.zen_transparency_color == null) prefs.mod.sameerasw.zen_transparency_color = background;
+    if (profile.format.color == null) profile.format.color = .hex8;
+    return profile;
 }
 
 /// The set prefs followed by the extras, checked so no name is written twice.
@@ -251,4 +270,47 @@ test "extras follow the prefs under their whole names, and a name set twice fail
     try testing.expectError(error.AppFailed, profile.apply(&fixture.output));
     try testing.expectEqualStrings("extra 'zen.theme.gradient' and setting 'zen.theme.gradient' write the same key, or one inside the other; keep one", fixture.diagnostics.message());
     try testing.expectEqualStrings("~/.zen/b.work/user.js", fixture.diagnostics.file);
+}
+
+test "a page background that is not opaque turns on transparency, the mod's background and alpha in colors; set prefs win" {
+    var theme = test_theme;
+    theme.background_alpha = 0.5;
+    {
+        var fixture: Fixture = undefined;
+        try fixture.init(&.{.{ ".zen/a.default/prefs.js", "" }});
+        defer fixture.deinit();
+        try from(theme).apply(&fixture.output);
+        try testing.expectEqualStrings(
+            \\// kosm:begin zen
+            \\user_pref("zen.theme.accent-color", "#268078ff");
+            \\user_pref("zen.view.window.scheme", 0);
+            \\user_pref("zen.widget.linux.transparency", true);
+            \\user_pref("browser.display.background_color", "#041c2680");
+            \\user_pref("browser.display.foreground_color", "#a3c5ccff");
+            \\user_pref("browser.tabs.allow_transparent_browser", true);
+            \\user_pref("toolkit.legacyUserProfileCustomizations.stylesheets", true);
+            \\user_pref("mod.sameerasw.zen_bg_color_enabled", true);
+            \\user_pref("mod.sameerasw.zen_transparency_color", "#041c2680");
+            \\// kosm:end
+            \\
+        , try fixture.planned(".zen/a.default/user.js"));
+    }
+    {
+        var fixture: Fixture = undefined;
+        try fixture.init(&.{.{ ".zen/a.default/prefs.js", "" }});
+        defer fixture.deinit();
+        var profile = from(theme);
+        profile.prefs.mod.sameerasw.zen_bg_color_enabled = false;
+        profile.prefs.mod.sameerasw.zen_transparency_color = kosm.hex("00000040");
+        profile.prefs.zen.widget.linux.transparency = false;
+        profile.prefs.browser.display.use_document_fonts = .never;
+        try profile.apply(&fixture.output);
+        const written = try fixture.planned(".zen/a.default/user.js");
+        for ([_][]const u8{
+            "user_pref(\"zen.widget.linux.transparency\", false);\n",
+            "user_pref(\"browser.display.use_document_fonts\", 0);\n",
+            "user_pref(\"mod.sameerasw.zen_bg_color_enabled\", false);\n",
+            "user_pref(\"mod.sameerasw.zen_transparency_color\", \"#00000040\");\n",
+        }) |expected| try testing.expect(std.mem.find(u8, written, expected) != null);
+    }
 }

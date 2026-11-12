@@ -44,17 +44,16 @@ pub const default_target: Target = .block;
 /// The id of the block kosm owns in `user.js`.
 const block_id = "zen";
 
-/// Prefs from the theme: the accent from cyan, the window scheme from the mode, page
-/// colors from black and white (swapped in light mode), the page background at the theme's
+/// Prefs from the theme: the accent from the accent role, the window scheme from the mode,
+/// page colors from the background and foreground roles, the page background at the theme's
 /// `background_alpha`, and the profile stylesheets kosm's CSS needs turned on. Every other pref
 /// is left to Zen.
 pub fn from(theme: kosm.Theme) Profile {
-    const palette = theme.palette;
     var prefs: Prefs = .{};
-    prefs.zen.theme.accent_color = palette.cyan;
+    prefs.zen.theme.accent_color = theme.roles.accent;
     prefs.zen.view.window.scheme = if (theme.mode == .dark) .dark else .light;
-    prefs.browser.display.background_color = theme.asBackground(if (theme.mode == .dark) palette.black else palette.white);
-    prefs.browser.display.foreground_color = if (theme.mode == .dark) palette.white else palette.black;
+    prefs.browser.display.background_color = theme.asBackground(theme.roles.background);
+    prefs.browser.display.foreground_color = theme.roles.foreground;
     prefs.toolkit.legacy_user_profile_customizations.stylesheets = true;
     return .{ .prefs = prefs };
 }
@@ -163,7 +162,7 @@ const test_profiles = [_][2][]const u8{
     .{ ".zen/Crash Reports/events/x", "" },
 };
 
-const test_theme = kosm.Theme.from(.{ .black = kosm.hex("041c26"), .white = kosm.hex("a3c5cc"), .cyan = kosm.hex("268078") }, .dark);
+const test_theme = kosm.Theme.from(.{ .palette = .{ .black = kosm.hex("041c26"), .white = kosm.hex("a3c5cc"), .cyan = kosm.hex("268078") }, .mode = .dark });
 
 const expected_block =
     \\// kosm:begin zen

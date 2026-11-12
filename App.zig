@@ -12,13 +12,13 @@ file: []const u8 = "~/.config/ZenBrowser/kosm.css",
 /// How values are spelled, e.g. `.color = .hex_upper`. Null fields take the CSS
 /// adapter's: `#rrggbbaa`, then kosm's 6 float decimals.
 format: kosm.Format = .{},
-/// Text and icons (`--kosm-foreground`). null: not written. `from`: white, black in light mode.
+/// Text and icons (`--kosm-foreground`). null: not written. `from`: the foreground role.
 foreground: ?kosm.Color = null,
 /// Links, focused fields and the selected tab's text (`--kosm-accent`). null: not written.
-/// `from`: cyan.
+/// `from`: the accent role.
 accent: ?kosm.Color = null,
 /// Toolbars, sidebar, panels and new tab page (`--kosm-background`). null: not written.
-/// `from`: black, white in light mode.
+/// `from`: the background role.
 background: ?kosm.Color = null,
 /// Buttons and the toolbar (`--kosm-button`). null: not written. `from`: `surface.raised` of
 /// `background`.
@@ -26,7 +26,7 @@ button: ?kosm.Color = null,
 /// Buttons under the pointer (`--kosm-button-hovered`). null: `hovered` of `button` when both
 /// are set, else not written.
 button_hovered: ?kosm.Color = null,
-/// Borders and outlines (`--kosm-border`). null: not written. `from`: cyan.
+/// Borders and outlines (`--kosm-border`). null: not written. `from`: the accent role.
 border: ?kosm.Color = null,
 /// Container tab colors (`--kosm-containers-blue`, ...). null ones are not written. `from`:
 /// the wheel's hues.
@@ -53,13 +53,13 @@ pub const Profile = @import("Profile.zig");
 /// Colors from the theme.
 pub fn from(theme: kosm.Theme) App {
     const palette = theme.palette;
-    const background = theme.asBackground(if (theme.mode == .dark) palette.black else palette.white);
+    const background = theme.asBackground(theme.roles.background);
     return .{
-        .foreground = if (theme.mode == .dark) palette.white else palette.black,
-        .accent = palette.cyan,
+        .foreground = theme.roles.foreground,
+        .accent = theme.roles.accent,
         .background = background,
         .button = theme.variations.surface.raised.apply(background),
-        .border = palette.cyan,
+        .border = theme.roles.accent,
         .containers = .{
             .blue = palette.blue,
             .turquoise = palette.cyan,
@@ -71,7 +71,7 @@ pub fn from(theme: kosm.Theme) App {
             .purple = palette.purple,
         },
         .hovered = theme.variations.state.hovered,
-        .logo = .{ .background = background, .foreground = if (theme.mode == .dark) palette.white else palette.black },
+        .logo = .{ .background = background, .foreground = theme.roles.foreground },
         .profile = .from(theme),
     };
 }
@@ -139,7 +139,7 @@ test "apply writes every color as a --kosm custom property" {
         .app = "zen",
     };
 
-    const theme = kosm.Theme.from(.{ .black = kosm.hex("041c26"), .white = kosm.hex("a3c5cc"), .cyan = kosm.hex("268078") }, .dark);
+    const theme = kosm.Theme.from(.{ .palette = .{ .black = kosm.hex("041c26"), .white = kosm.hex("a3c5cc"), .cyan = kosm.hex("268078") }, .mode = .dark });
     var app = from(theme);
     app.profile = null;
     app.button = kosm.hex("082e3f");
@@ -234,7 +234,7 @@ test "extras follow the colors as custom properties, and a clash fails naming bo
 
 test "the theme's background alpha reaches the background and the button raised from it, and a set color wins" {
     const palette: kosm.Palette = .{ .black = kosm.hex("041c26"), .white = kosm.hex("a3c5cc") };
-    var theme = kosm.Theme.from(palette, .dark);
+    var theme = kosm.Theme.from(.{ .palette = palette, .mode = .dark });
     try testing.expectEqual(1, from(theme).background.?.alpha);
 
     theme.background_alpha = 0.5;

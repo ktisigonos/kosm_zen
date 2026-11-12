@@ -26,12 +26,12 @@ color goes:
 |---|---|---|
 | `file` | | `~/.config/ZenBrowser/kosm.css` |
 | `format` | | `.{}`: the CSS adapter's `#rrggbbaa`, then 6 float decimals |
-| `foreground` | `--kosm-foreground` | null; `from`: white, black in light mode |
-| `accent` | `--kosm-accent` | null; `from`: cyan |
-| `background` | `--kosm-background` | null; `from`: black, white in light mode, at the theme's `background_alpha` |
+| `foreground` | `--kosm-foreground` | null; `from`: the theme's foreground role |
+| `accent` | `--kosm-accent` | null; `from`: the theme's accent role |
+| `background` | `--kosm-background` | null; `from`: the theme's background role at its `background_alpha` |
 | `button` | `--kosm-button` | null; `from`: `surface.raised` of `background` |
 | `button_hovered` | `--kosm-button-hovered` | null: `hovered` of `button` when both are set |
-| `border` | `--kosm-border` | null; `from`: cyan |
+| `border` | `--kosm-border` | null; `from`: the theme's accent role |
 | `containers.blue` | `--kosm-containers-blue` | null; `from`: the wheel's blue |
 | `containers.turquoise` | `--kosm-containers-turquoise` | null; `from`: the wheel's cyan |
 | `containers.green` | `--kosm-containers-green` | null; `from`: the wheel's green |

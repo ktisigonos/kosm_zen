@@ -37,7 +37,7 @@ hovered: ?kosm.Modifier = null,
 tab_switch: ?Mod.TabSwitch = null,
 /// The floating sidebar of compact mode: its width, and whether the page beneath is cut out
 /// (x-ray) or blurred. null: Zen's own, the page showing through. `from`:
-/// `Mod.default_compact_sidebar`, x-ray at 186 px.
+/// `Mod.default_compact_sidebar`, x-ray at 400 px.
 compact_sidebar: ?Mod.CompactSidebar = null,
 /// Properties the app doesn't cover, each a pref named by `path` that Zen sets as the property
 /// of that name with `.` as `-`: `.{ .path = "kosm.tab.radius", .value = .{ .raw = "8px" } }` is

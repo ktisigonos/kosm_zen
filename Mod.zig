@@ -49,22 +49,20 @@ pub const TabSwitch = struct {
     curve: kosm.Curve,
 };
 
-/// The floating sidebar of compact mode. Any combination works: x-ray alone shows the window's
-/// background through it, blur alone a blurred page, both a blurred background.
+/// The floating sidebar of compact mode.
 pub const CompactSidebar = struct {
     /// Pixels. The mod sets the sidebar's width so x-ray cuts out exactly what it covers; dragging
     /// its edge no longer resizes it. null: Zen's own width, which x-ray can't follow.
     width: ?f64 = null,
     /// Cut the page out beneath the sidebar while it shows, so the sidebar lies over the window's
-    /// background instead of the page's text. Needs `width`. Default: false.
+    /// background, and the compositor's blur of what is behind the window, instead of the page's
+    /// text. CSS can't blur a page itself: Firefox draws pages in another process. Needs `width`.
+    /// Default: false.
     xray: bool = false,
-    /// Pixels to blur whatever is behind the sidebar. null: no blur.
-    blur: ?f64 = null,
 };
 
-/// The page behind the sidebar blurred, at Zen's own width, which dragging still changes. For
-/// x-ray, set `.{ .width = 400, .xray = true }`.
-pub const default_compact_sidebar: CompactSidebar = .{ .blur = 20 };
+/// The x-ray sidebar, wide enough for long tab titles.
+pub const default_compact_sidebar: CompactSidebar = .{ .width = 400, .xray = true };
 
 /// The mod's id in Zen's mod list, `zen-themes.json`, and its folder under `chrome/zen-themes`.
 pub const id = "kosm";
@@ -79,7 +77,6 @@ const Switches = struct {
     tab_switch_enabled: []const u8 = "kosm.tab-switch-enabled",
     compact_sidebar_width_enabled: []const u8 = "kosm.compact-sidebar-width-enabled",
     compact_sidebar_xray: []const u8 = "kosm.compact-sidebar-xray",
-    compact_sidebar_blur_enabled: []const u8 = "kosm.compact-sidebar-blur-enabled",
 };
 const switches: Switches = .{};
 
@@ -160,7 +157,6 @@ pub fn prefs(self: Mod, output: *kosm.Output, file: []const u8) kosm.Output.Erro
         return output.fail(file, "compact_sidebar.xray needs compact_sidebar.width, the width it cuts out of the page", .{});
     try appendPref(allocator, &list, switches.compact_sidebar_width_enabled, .{ .boolean = sidebar.width != null });
     try appendPref(allocator, &list, switches.compact_sidebar_xray, .{ .boolean = sidebar.xray });
-    try appendPref(allocator, &list, switches.compact_sidebar_blur_enabled, .{ .boolean = sidebar.blur != null });
     var colors = self;
     if (colors.button_hovered == null) colors.button_hovered = self.derivedButtonHovered();
     inline for (color_fields) |name| if (@field(colors, name)) |color| {
@@ -174,7 +170,6 @@ pub fn prefs(self: Mod, output: *kosm.Output, file: []const u8) kosm.Output.Erro
         try appendPref(allocator, &list, "kosm.tab-switch-curve", try curveValue(output, file, tab_switch.curve));
     }
     if (sidebar.width) |width| try appendPref(allocator, &list, "kosm.compact-sidebar-width", try pixels(allocator, width));
-    if (sidebar.blur) |blur| try appendPref(allocator, &list, "kosm.compact-sidebar-blur", try pixels(allocator, blur));
     return list.items;
 }
 

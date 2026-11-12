@@ -109,10 +109,3 @@
     ) !important;
   }
 }
-
-/* Whatever is behind the floating sidebar, blurred. */
-@media -moz-pref("{kosm.compact_sidebar_blur_enabled}") {
-  :root[zen-compact-mode='true'] #navigator-toolbox .zen-toolbar-background {
-    backdrop-filter: blur(var(--kosm-compact-sidebar-blur)) !important;
-  }
-}

@@ -351,7 +351,6 @@ test "a profile with mod values gets them as prefs, the mod's stylesheet and lis
         \\user_pref("kosm.tab-switch-enabled", true);
         \\user_pref("kosm.compact-sidebar-width-enabled", false);
         \\user_pref("kosm.compact-sidebar-xray", false);
-        \\user_pref("kosm.compact-sidebar-blur-enabled", false);
         \\user_pref("kosm.background", "#041c2680");
         \\user_pref("kosm.button", "#082e3fff");
         \\user_pref("kosm.button-hovered", "#
@@ -395,7 +394,6 @@ test "a mod without a background, tab switch or compact sidebar turns those part
         \\user_pref("kosm.tab-switch-enabled", false);
         \\user_pref("kosm.compact-sidebar-width-enabled", false);
         \\user_pref("kosm.compact-sidebar-xray", false);
-        \\user_pref("kosm.compact-sidebar-blur-enabled", false);
         \\user_pref("kosm.accent", "#268078");
         \\
     , try fixture.planned(".zen/a.default/user.js"));
@@ -468,21 +466,19 @@ test "the app fills its profile's mod where the profile's own values are null" {
     try testing.expectEqual(files_before, fixture.plan.files.items.len);
 }
 
-test "the compact sidebar's width, x-ray and blur become switches and pixel prefs, and x-ray without a width fails" {
+test "the compact sidebar's width and x-ray become switches and a pixel pref, and x-ray without a width fails" {
     var fixture: Fixture = undefined;
     try fixture.init(&.{ .{ ".zen/a.default/prefs.js", "" }, .{ ".zen/a.default/zen-themes.json", mod_entry } });
     defer fixture.deinit();
     var profile: Profile = .{ .target = .generate };
-    profile.mod.compact_sidebar = .{ .width = 240, .xray = true, .blur = 20 };
+    profile.mod.compact_sidebar = .{ .width = 240, .xray = true };
     try profile.apply(&fixture.output);
     try testing.expectEqualStrings(
         \\user_pref("kosm.background-enabled", false);
         \\user_pref("kosm.tab-switch-enabled", false);
         \\user_pref("kosm.compact-sidebar-width-enabled", true);
         \\user_pref("kosm.compact-sidebar-xray", true);
-        \\user_pref("kosm.compact-sidebar-blur-enabled", true);
         \\user_pref("kosm.compact-sidebar-width", "240px");
-        \\user_pref("kosm.compact-sidebar-blur", "20px");
         \\
     , try fixture.planned(".zen/a.default/user.js"));
     const stylesheet = try fixture.planned(".zen/a.default/chrome/zen-themes/kosm/chrome.css");

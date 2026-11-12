@@ -27,6 +27,10 @@ prefs: Prefs = .{},
 /// null ones of its own profile from its fields, and `Mod.from(theme)` gives a second profile
 /// set the same.
 mod: Mod = .{},
+/// Also writes the prefs to each profile's `kosm-live.json`, which Kosm Live (`kosm_firefox`)
+/// sets in a running Zen, then has Zen rebuild its mods, so an apply shows with no restart.
+/// Default: false, and the prefs take effect when Zen starts.
+live: bool = false,
 /// Prefs the app doesn't cover, written after its own, each named by its whole
 /// about:config name: `.{ .path = "zen.urlbar.behavior", .value = .{ .string = "float" } }`. A
 /// name a set pref or another extra already has fails the apply. Default: none.
@@ -55,6 +59,17 @@ const rebuild_mods_at_startup = -1;
 
 /// The id of the block kosm owns in `user.js`.
 const block_id = "zen";
+
+/// The file in each profile Kosm Live reads the prefs from.
+const live_file = "kosm-live.json";
+/// The pref whose flip makes Zen re-read every mod's prefs and rebuild their stylesheets.
+const mods_changed_pref = "zen.mods.updated-value-observer";
+
+/// What `kosm-live.json` holds: the prefs to set, then the prefs to flip once something changed.
+const Live = struct {
+    prefs: kosm.Value,
+    flip: []const []const u8,
+};
 
 /// Prefs from the theme: the accent from the accent role, the window scheme from the mode,
 /// page colors from the background and foreground roles, the page background at the theme's
@@ -88,18 +103,23 @@ pub fn apply(given: Profile, output: *kosm.Output) !void {
             .generate => try output.generate(.{ .file = file, .lang = "userjs", .format = self.format }, prefs),
         }
         if (writes_mod) try Mod.write(output, std.Io.Dir.path.dirname(prefs_js).?, mod_prefs, mod_extras);
+        if (self.live) {
+            const live = try std.mem.concat(output.allocator, u8, &.{ std.Io.Dir.path.dirname(prefs_js).?, "/", live_file });
+            const flip: []const []const u8 = if (writes_mod) &.{mods_changed_pref} else &.{};
+            try output.generate(.{ .file = live, .lang = "json", .format = self.format }, Live{ .prefs = prefs, .flip = flip });
+        }
     }
 }
 
 /// The profile with what follows from its values, wherever it is null: the prefs that let the
 /// window be seen through, on only while the page background is not opaque, a color format that
-/// keeps alpha while it or a color of the mod is not opaque, and, with a mod, Zen rebuilding mod
-/// stylesheets at every start. Written for an opaque background
+/// keeps alpha while it or a color of the mod is not opaque, and, with a mod and without `live`
+/// (Kosm Live has Zen rebuild them), Zen rebuilding mod stylesheets at every start. Written for an opaque background
 /// too, so a translucent kosmos applied before leaves nothing behind.
 fn withDerived(self: Profile) Profile {
     var profile = self;
     if (self.mod.hasTranslucentColor() and profile.format.color == null) profile.format.color = .hex8;
-    if (!self.mod.isEmpty() and profile.prefs.zen.mods.last_update == null) profile.prefs.zen.mods.last_update = rebuild_mods_at_startup;
+    if (!self.mod.isEmpty() and !self.live and profile.prefs.zen.mods.last_update == null) profile.prefs.zen.mods.last_update = rebuild_mods_at_startup;
     const background = self.prefs.browser.display.background_color orelse return profile;
     const translucent = background.alpha < 1;
     const prefs = &profile.prefs;
@@ -252,6 +272,25 @@ test "the generate target owns the whole user.js" {
     profile.prefs.zen.theme.content_element_separation = 0;
     try profile.apply(&fixture.output);
     try testing.expectEqualStrings("user_pref(\"zen.theme.content-element-separation\", 0);\n", try fixture.planned(".zen/a.default/user.js"));
+}
+
+test "a live profile also writes its prefs for Kosm Live, which has Zen rebuild the mod, so Zen needn't at startup" {
+    var fixture: Fixture = undefined;
+    try fixture.init(&(test_profiles ++ [_][2][]const u8{.{ ".zen/a.default/zen-themes.json", "{\"kosm\": {\"id\": \"kosm\", \"preferences\": \"preferences.json\", \"enabled\": true}}\n" }}));
+    defer fixture.deinit();
+    var profile = from(test_theme);
+    profile.profiles = "~/.zen/a.default";
+    profile.live = true;
+    profile.mod.background = kosm.hex("041c26");
+    try profile.apply(&fixture.output);
+    const live = try std.json.parseFromSlice(struct { prefs: std.json.Value, flip: []const []const u8 }, fixture.arena.allocator(), try fixture.planned(".zen/a.default/kosm-live.json"), .{});
+    try testing.expectEqualStrings("#268078", live.value.prefs.object.get("zen.theme.accent-color").?.string);
+    try testing.expectEqual(0, live.value.prefs.object.get("zen.view.window.scheme").?.integer);
+    try testing.expectEqualStrings("#041c26", live.value.prefs.object.get("kosm.background").?.string);
+    try testing.expectEqual(null, live.value.prefs.object.get("zen.mods.last-update"));
+    try testing.expectEqual(1, live.value.flip.len);
+    try testing.expectEqualStrings("zen.mods.updated-value-observer", live.value.flip[0]);
+    try testing.expect(std.mem.indexOf(u8, try fixture.planned(".zen/a.default/user.js"), "zen.mods.last-update") == null);
 }
 
 test "no profile to write is an error naming the glob" {

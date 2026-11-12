@@ -40,14 +40,22 @@ kosm keeps the entry's `preferences` field set (Zen reads the mod's prefs only w
 so an apply fails naming the file when the entry is missing. Zen's mod updater leaves the mod
 alone: the mod store doesn't know it.
 
-A change shows after Zen restarts.
+A change shows after Zen restarts, or at once with `profile.live` and Kosm Live (below).
+
+### Live with Kosm Live
+
+With `profile.live = true`, each profile also gets `kosm-live.json`: its prefs, the mod's values
+among them. Kosm Live, the extension `kosm_firefox` installs, sets them in the running Zen on
+every apply and has Zen rebuild its mods, so colors, the mod's stylesheet and every other pref
+change with no restart. `zen.mods.last-update` is then left to Zen. `kosm_base` turns it on
+when the kosmos also has `kosm_firefox`.
 
 ### Rebuilding mods at every start
 
 Zen reads the mod's values (the prefs) at every start, but rebuilds mod stylesheets only when
 it checks the mod store for updates, normally every few days. So that a new kosm_zen's
 stylesheet also shows after a restart, kosm sets `zen.mods.last-update` to -1 while a profile
-gets the mod, which makes Zen check a moment after every start. That doesn't slow the start:
+gets the mod (and isn't `live`), which makes Zen check a moment after every start. That doesn't slow the start:
 Zen checks once the window is up. In return, Zen asks the mod store about each of your mods at
 every start, a changed stylesheet shows a beat after the window opens, and your other mods
 update at every start rather than every few days.
@@ -148,6 +156,7 @@ On a machine without Zen, set `profile = null` (a profile glob matching nothing 
 | `prefs` | `.{}`, below; with no pref and no mod value set, the profile writes nothing and needs no Zen |
 | `mod` | `.{}`: no mod; the app fills its own profile's from its fields. `kosm_zen.Mod.from(theme)` gives the app's defaults. Its fields are the app's color fields, `hovered`, `tab_switch` and `extra` |
 | `extra` | `&.{}`: prefs the app doesn't cover, by their whole about:config name |
+| `live` | `false`: the prefs take effect when Zen starts; `true` also writes them for Kosm Live to set at once |
 
 `extra` writes prefs `prefs` doesn't cover, after its own, each named by its whole about:config
 name (no quotes needed): `.{ .path = "zen.urlbar.behavior", .value = .{ .string = "float" } }`.

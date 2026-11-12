@@ -31,6 +31,9 @@ containers: Containers = .{},
 hovered: ?kosm.Modifier = null,
 /// How a page zooms in when its tab is selected. null: it doesn't.
 tab_switch: ?TabSwitch = null,
+/// The floating sidebar of compact mode: its width, and what shows through it. null: Zen's own,
+/// the page showing through.
+compact_sidebar: ?CompactSidebar = null,
 /// Properties the mod doesn't cover, each a pref named by `path` whose value Zen sets as the
 /// property of that name with `.` as `-`: `.{ .path = "kosm.tab.radius", .value = .{ .raw = "8px" } }`
 /// is `--kosm-tab-radius`. Values are written as text. Default: none.
@@ -46,6 +49,22 @@ pub const TabSwitch = struct {
     curve: kosm.Curve,
 };
 
+/// The floating sidebar of compact mode. Any combination works: x-ray alone shows the window's
+/// background through it, blur alone a blurred page, both a blurred background.
+pub const CompactSidebar = struct {
+    /// Pixels. The mod sets the sidebar's width so x-ray cuts out exactly what it covers; dragging
+    /// its edge no longer resizes it. null: Zen's own width, which x-ray can't follow.
+    width: ?f64 = null,
+    /// Cut the page out beneath the sidebar while it shows, so the sidebar lies over the window's
+    /// background instead of the page's text. Needs `width`. Default: false.
+    xray: bool = false,
+    /// Pixels to blur whatever is behind the sidebar. null: no blur.
+    blur: ?f64 = null,
+};
+
+/// The x-ray sidebar at Zen's own default width on Linux, unblurred.
+pub const default_compact_sidebar: CompactSidebar = .{ .width = 186, .xray = true };
+
 /// The mod's id in Zen's mod list, `zen-themes.json`, and its folder under `chrome/zen-themes`.
 pub const id = "kosm";
 
@@ -57,6 +76,9 @@ const entry_field = "preferences";
 const Switches = struct {
     background_enabled: []const u8 = "kosm.background-enabled",
     tab_switch_enabled: []const u8 = "kosm.tab-switch-enabled",
+    compact_sidebar_width_enabled: []const u8 = "kosm.compact-sidebar-width-enabled",
+    compact_sidebar_xray: []const u8 = "kosm.compact-sidebar-xray",
+    compact_sidebar_blur_enabled: []const u8 = "kosm.compact-sidebar-blur-enabled",
 };
 const switches: Switches = .{};
 
@@ -65,8 +87,8 @@ pub const default_tab_switch: TabSwitch = .{ .duration = 0.25, .curve = .cubicBe
 
 /// Colors from the theme: the foreground role, the background role at the theme's
 /// `background_alpha`, buttons raised from it and hovered by the theme's `state.hovered`, the
-/// accent role for the accent and border, the wheel's hues for containers, and
-/// `default_tab_switch`.
+/// accent role for the accent and border, the wheel's hues for containers,
+/// `default_tab_switch` and `default_compact_sidebar`.
 pub fn from(theme: kosm.Theme) Mod {
     const palette = theme.palette;
     const background = theme.asBackground(theme.roles.background);
@@ -88,12 +110,13 @@ pub fn from(theme: kosm.Theme) Mod {
         },
         .hovered = theme.variations.state.hovered,
         .tab_switch = default_tab_switch,
+        .compact_sidebar = default_compact_sidebar,
     };
 }
 
 /// Whether nothing is set, so no mod is written.
 pub fn isEmpty(self: Mod) bool {
-    if (self.tab_switch != null or self.extra.len != 0) return false;
+    if (self.tab_switch != null or self.compact_sidebar != null or self.extra.len != 0) return false;
     inline for (color_fields) |name| if (@field(self, name) != null) return false;
     inline for (@typeInfo(Containers).@"struct".field_names) |name| if (@field(self.containers, name) != null) return false;
     return true;
@@ -110,6 +133,7 @@ pub fn orElse(self: Mod, fallback: Mod, allocator: std.mem.Allocator) std.mem.Al
     };
     if (mod.hovered == null) mod.hovered = fallback.hovered;
     if (mod.tab_switch == null) mod.tab_switch = fallback.tab_switch;
+    if (mod.compact_sidebar == null) mod.compact_sidebar = fallback.compact_sidebar;
     mod.extra = try std.mem.concat(allocator, kosm.Setting, &.{ self.extra, fallback.extra });
     return mod;
 }
@@ -130,6 +154,12 @@ pub fn prefs(self: Mod, output: *kosm.Output, file: []const u8) kosm.Output.Erro
     var list: std.ArrayList(kosm.Setting.Keyed) = .empty;
     try appendPref(allocator, &list, switches.background_enabled, .{ .boolean = self.background != null });
     try appendPref(allocator, &list, switches.tab_switch_enabled, .{ .boolean = self.tab_switch != null });
+    const sidebar = self.compact_sidebar orelse CompactSidebar{};
+    if (sidebar.xray and sidebar.width == null)
+        return output.fail(file, "compact_sidebar.xray needs compact_sidebar.width, the width it cuts out of the page", .{});
+    try appendPref(allocator, &list, switches.compact_sidebar_width_enabled, .{ .boolean = sidebar.width != null });
+    try appendPref(allocator, &list, switches.compact_sidebar_xray, .{ .boolean = sidebar.xray });
+    try appendPref(allocator, &list, switches.compact_sidebar_blur_enabled, .{ .boolean = sidebar.blur != null });
     var colors = self;
     if (colors.button_hovered == null) colors.button_hovered = self.derivedButtonHovered();
     inline for (color_fields) |name| if (@field(colors, name)) |color| {
@@ -142,6 +172,8 @@ pub fn prefs(self: Mod, output: *kosm.Output, file: []const u8) kosm.Output.Erro
         try appendPref(allocator, &list, "kosm.tab-switch-duration", try joined(allocator, &.{ .{ .float = tab_switch.duration }, .{ .raw = "s" } }));
         try appendPref(allocator, &list, "kosm.tab-switch-curve", try curveValue(output, file, tab_switch.curve));
     }
+    if (sidebar.width) |width| try appendPref(allocator, &list, "kosm.compact-sidebar-width", try pixels(allocator, width));
+    if (sidebar.blur) |blur| try appendPref(allocator, &list, "kosm.compact-sidebar-blur", try pixels(allocator, blur));
     return list.items;
 }
 
@@ -203,6 +235,10 @@ fn appendPref(allocator: std.mem.Allocator, list: *std.ArrayList(kosm.Setting.Ke
 
 fn joined(allocator: std.mem.Allocator, parts: []const kosm.Value) std.mem.Allocator.Error!kosm.Value {
     return .{ .joined = try allocator.dupe(kosm.Value, parts) };
+}
+
+fn pixels(allocator: std.mem.Allocator, amount: f64) std.mem.Allocator.Error!kosm.Value {
+    return joined(allocator, &.{ .{ .float = amount }, .{ .raw = "px" } });
 }
 
 /// `value` as text: the userjs adapter writes a joined value as a string.

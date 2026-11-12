@@ -77,3 +77,42 @@
     opacity: 1 !important;
   }
 }
+
+/* The floating sidebar of compact mode at a width the page's cut-out can follow. */
+@media -moz-pref("{kosm.compact_sidebar_width_enabled}") {
+  :root[zen-compact-mode='true'] #navigator-toolbox {
+    --zen-sidebar-width: var(--kosm-compact-sidebar-width) !important;
+    --actual-zen-sidebar-width: var(--kosm-compact-sidebar-width) !important;
+    width: var(--kosm-compact-sidebar-width) !important;
+
+    #titlebar {
+      width: var(--kosm-compact-sidebar-width) !important;
+    }
+  }
+}
+
+/* X-ray: the page is cut out beneath the floating sidebar while it shows. */
+@media -moz-pref("{kosm.compact_sidebar_xray}") {
+  :root[zen-compact-mode='true']:has(#navigator-toolbox:is([zen-has-hover], [zen-user-show], [zen-has-empty-tab], [flash-popup], [has-popup-menu], [movingtab], [zen-compact-mode-active])) #tabbrowser-tabpanels {
+    mask-image: linear-gradient(
+      to right,
+      transparent calc(var(--kosm-compact-sidebar-width) + 10px),
+      black calc(var(--kosm-compact-sidebar-width) + 10px)
+    ) !important;
+  }
+
+  :root[zen-compact-mode='true'][zen-right-side='true']:has(#navigator-toolbox:is([zen-has-hover], [zen-user-show], [zen-has-empty-tab], [flash-popup], [has-popup-menu], [movingtab], [zen-compact-mode-active])) #tabbrowser-tabpanels {
+    mask-image: linear-gradient(
+      to left,
+      transparent calc(var(--kosm-compact-sidebar-width) + 10px),
+      black calc(var(--kosm-compact-sidebar-width) + 10px)
+    ) !important;
+  }
+}
+
+/* Whatever is behind the floating sidebar, blurred. */
+@media -moz-pref("{kosm.compact_sidebar_blur_enabled}") {
+  :root[zen-compact-mode='true'] #navigator-toolbox .zen-toolbar-background {
+    backdrop-filter: blur(var(--kosm-compact-sidebar-blur)) !important;
+  }
+}

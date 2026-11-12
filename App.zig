@@ -35,6 +35,10 @@ hovered: ?kosm.Modifier = null,
 /// How a page zooms in when its tab is selected. null: it doesn't. `from`:
 /// `Mod.default_tab_switch`, 0.25 s with a slight overshoot.
 tab_switch: ?Mod.TabSwitch = null,
+/// The floating sidebar of compact mode: its width, and whether the page beneath is cut out
+/// (x-ray) or blurred. null: Zen's own, the page showing through. `from`:
+/// `Mod.default_compact_sidebar`, x-ray at 186 px.
+compact_sidebar: ?Mod.CompactSidebar = null,
 /// Properties the app doesn't cover, each a pref named by `path` that Zen sets as the property
 /// of that name with `.` as `-`: `.{ .path = "kosm.tab.radius", .value = .{ .raw = "8px" } }` is
 /// `--kosm-tab-radius`. A name another pref has fails the apply. Default: none.
@@ -65,6 +69,7 @@ pub fn from(theme: kosm.Theme) App {
         .containers = values.containers,
         .hovered = values.hovered,
         .tab_switch = values.tab_switch,
+        .compact_sidebar = values.compact_sidebar,
         .logo = .{ .background = values.background.?, .foreground = values.foreground.? },
         .profile = .from(theme),
     };
@@ -91,6 +96,7 @@ pub fn mod(self: App) Mod {
         .containers = self.containers,
         .hovered = self.hovered,
         .tab_switch = self.tab_switch,
+        .compact_sidebar = self.compact_sidebar,
         .extra = self.extra,
     };
 }

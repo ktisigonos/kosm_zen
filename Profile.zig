@@ -349,6 +349,9 @@ test "a profile with mod values gets them as prefs, the mod's stylesheet and lis
     try testing.expect(std.mem.startsWith(u8, prefs,
         \\user_pref("kosm.background-enabled", true);
         \\user_pref("kosm.tab-switch-enabled", true);
+        \\user_pref("kosm.compact-sidebar-width-enabled", false);
+        \\user_pref("kosm.compact-sidebar-xray", false);
+        \\user_pref("kosm.compact-sidebar-blur-enabled", false);
         \\user_pref("kosm.background", "#041c2680");
         \\user_pref("kosm.button", "#082e3fff");
         \\user_pref("kosm.button-hovered", "#
@@ -380,7 +383,7 @@ test "a profile with mod values gets them as prefs, the mod's stylesheet and lis
     , try fixture.planned(".zen/a.default/zen-themes.json"));
 }
 
-test "a mod without a background or tab switch turns those parts off" {
+test "a mod without a background, tab switch or compact sidebar turns those parts off" {
     var fixture: Fixture = undefined;
     try fixture.init(&.{ .{ ".zen/a.default/prefs.js", "" }, .{ ".zen/a.default/zen-themes.json", mod_entry } });
     defer fixture.deinit();
@@ -390,6 +393,9 @@ test "a mod without a background or tab switch turns those parts off" {
     try testing.expectEqualStrings(
         \\user_pref("kosm.background-enabled", false);
         \\user_pref("kosm.tab-switch-enabled", false);
+        \\user_pref("kosm.compact-sidebar-width-enabled", false);
+        \\user_pref("kosm.compact-sidebar-xray", false);
+        \\user_pref("kosm.compact-sidebar-blur-enabled", false);
         \\user_pref("kosm.accent", "#268078");
         \\
     , try fixture.planned(".zen/a.default/user.js"));
@@ -460,4 +466,31 @@ test "the app fills its profile's mod where the profile's own values are null" {
     const files_before = fixture.plan.files.items.len;
     try no_profile.apply(&fixture.output);
     try testing.expectEqual(files_before, fixture.plan.files.items.len);
+}
+
+test "the compact sidebar's width, x-ray and blur become switches and pixel prefs, and x-ray without a width fails" {
+    var fixture: Fixture = undefined;
+    try fixture.init(&.{ .{ ".zen/a.default/prefs.js", "" }, .{ ".zen/a.default/zen-themes.json", mod_entry } });
+    defer fixture.deinit();
+    var profile: Profile = .{ .target = .generate };
+    profile.mod.compact_sidebar = .{ .width = 240, .xray = true, .blur = 20 };
+    try profile.apply(&fixture.output);
+    try testing.expectEqualStrings(
+        \\user_pref("kosm.background-enabled", false);
+        \\user_pref("kosm.tab-switch-enabled", false);
+        \\user_pref("kosm.compact-sidebar-width-enabled", true);
+        \\user_pref("kosm.compact-sidebar-xray", true);
+        \\user_pref("kosm.compact-sidebar-blur-enabled", true);
+        \\user_pref("kosm.compact-sidebar-width", "240px");
+        \\user_pref("kosm.compact-sidebar-blur", "20px");
+        \\
+    , try fixture.planned(".zen/a.default/user.js"));
+    const stylesheet = try fixture.planned(".zen/a.default/chrome/zen-themes/kosm/chrome.css");
+    try testing.expect(std.mem.find(u8, stylesheet, "@media -moz-pref(\"kosm.compact-sidebar-xray\") {") != null);
+    const list = try fixture.planned(".zen/a.default/chrome/zen-themes/kosm/preferences.json");
+    try testing.expect(std.mem.find(u8, list, "\"property\": \"kosm.compact-sidebar-width\"") != null);
+
+    profile.mod.compact_sidebar = .{ .xray = true };
+    try testing.expectError(error.AppFailed, profile.apply(&fixture.output));
+    try testing.expectEqualStrings("compact_sidebar.xray needs compact_sidebar.width, the width it cuts out of the page", fixture.diagnostics.message());
 }

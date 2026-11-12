@@ -75,19 +75,20 @@ pub fn apply(given: Profile, output: *kosm.Output) !void {
     }
 }
 
-/// The profile with what follows a page background that is not opaque, wherever it is null:
-/// the prefs that let the window be seen through, the Transparent Zen mod's background, and a
-/// color format that keeps alpha.
+/// The profile with what follows the page background's alpha, wherever it is null: the prefs
+/// that let the window be seen through, on only while it is not opaque, the Transparent Zen
+/// mod's background, and a color format that keeps alpha while it is not opaque. Written for
+/// an opaque background too, so a translucent kosmos applied before leaves nothing behind.
 fn withDerived(self: Profile) Profile {
     var profile = self;
     const background = self.prefs.browser.display.background_color orelse return profile;
-    if (background.alpha >= 1) return profile;
+    const translucent = background.alpha < 1;
     const prefs = &profile.prefs;
-    if (prefs.browser.tabs.allow_transparent_browser == null) prefs.browser.tabs.allow_transparent_browser = true;
-    if (prefs.zen.widget.linux.transparency == null) prefs.zen.widget.linux.transparency = true;
+    if (prefs.browser.tabs.allow_transparent_browser == null) prefs.browser.tabs.allow_transparent_browser = translucent;
+    if (prefs.zen.widget.linux.transparency == null) prefs.zen.widget.linux.transparency = translucent;
     if (prefs.mod.sameerasw.zen_bg_color_enabled == null) prefs.mod.sameerasw.zen_bg_color_enabled = true;
     if (prefs.mod.sameerasw.zen_transparency_color == null) prefs.mod.sameerasw.zen_transparency_color = background;
-    if (profile.format.color == null) profile.format.color = .hex8;
+    if (translucent and profile.format.color == null) profile.format.color = .hex8;
     return profile;
 }
 
@@ -168,9 +169,13 @@ const expected_block =
     \\// kosm:begin zen
     \\user_pref("zen.theme.accent-color", "#268078");
     \\user_pref("zen.view.window.scheme", 0);
+    \\user_pref("zen.widget.linux.transparency", false);
     \\user_pref("browser.display.background_color", "#041c26");
     \\user_pref("browser.display.foreground_color", "#a3c5cc");
+    \\user_pref("browser.tabs.allow_transparent_browser", false);
     \\user_pref("toolkit.legacyUserProfileCustomizations.stylesheets", true);
+    \\user_pref("mod.sameerasw.zen_bg_color_enabled", true);
+    \\user_pref("mod.sameerasw.zen_transparency_color", "#041c26");
     \\// kosm:end
     \\
 ;
@@ -271,7 +276,7 @@ test "extras follow the prefs under their whole names, and a name set twice fail
     try testing.expectEqualStrings("~/.zen/b.work/user.js", fixture.diagnostics.file);
 }
 
-test "a page background that is not opaque turns on transparency, the mod's background and alpha in colors; set prefs win" {
+test "a page background that is not opaque turns on transparency, the mod's background and alpha in colors, an opaque one turns transparency off; set prefs win" {
     var theme = test_theme;
     theme.background_alpha = 0.5;
     {

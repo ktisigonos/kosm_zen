@@ -28,7 +28,8 @@ prefs: Prefs = .{},
 /// set the same.
 mod: Mod = .{},
 /// Also writes the prefs to each profile's `kosm-live.json`, which Kosm Live (`kosm_firefox`)
-/// sets in a running Zen, then has Zen rebuild its mods, so an apply shows with no restart.
+/// sets in a running Zen, then has Zen rebuild its mods and recompute its accent and toolbar
+/// colors, so an apply shows with no restart, just as after one.
 /// Default: false, and the prefs take effect when Zen starts.
 live: bool = false,
 /// Prefs the app doesn't cover, written after its own, each named by its whole
@@ -65,10 +66,16 @@ const live_file = "kosm-live.json";
 /// The pref whose flip makes Zen re-read every mod's prefs and rebuild their stylesheets.
 const mods_changed_pref = "zen.mods.updated-value-observer";
 
-/// What `kosm-live.json` holds: the prefs to set, then the prefs to flip once something changed.
+/// Zen's method recomputing, in a window, what it derives from the accent at startup: the UI
+/// accent and the toolbar's text colors. Setting the accent pref alone shows it unadjusted.
+const theme_refresh_method = "gZenThemePicker.handleDarkModeChange";
+
+/// What `kosm-live.json` holds: the prefs to set, then, once something changed, the prefs to flip
+/// and the methods to call in every browser window.
 const Live = struct {
     prefs: kosm.Value,
     flip: []const []const u8,
+    call: []const []const u8,
 };
 
 /// Prefs from the theme: the accent from the accent role, the window scheme from the mode,
@@ -106,7 +113,7 @@ pub fn apply(given: Profile, output: *kosm.Output) !void {
         if (self.live) {
             const live = try std.mem.concat(output.allocator, u8, &.{ std.Io.Dir.path.dirname(prefs_js).?, "/", live_file });
             const flip: []const []const u8 = if (writes_mod) &.{mods_changed_pref} else &.{};
-            try output.generate(.{ .file = live, .lang = "json", .format = self.format }, Live{ .prefs = prefs, .flip = flip });
+            try output.generate(.{ .file = live, .lang = "json", .format = self.format }, Live{ .prefs = prefs, .flip = flip, .call = &.{theme_refresh_method} });
         }
     }
 }
@@ -283,13 +290,15 @@ test "a live profile also writes its prefs for Kosm Live, which has Zen rebuild 
     profile.live = true;
     profile.mod.background = kosm.hex("041c26");
     try profile.apply(&fixture.output);
-    const live = try std.json.parseFromSlice(struct { prefs: std.json.Value, flip: []const []const u8 }, fixture.arena.allocator(), try fixture.planned(".zen/a.default/kosm-live.json"), .{});
+    const live = try std.json.parseFromSlice(struct { prefs: std.json.Value, flip: []const []const u8, call: []const []const u8 }, fixture.arena.allocator(), try fixture.planned(".zen/a.default/kosm-live.json"), .{});
     try testing.expectEqualStrings("#268078", live.value.prefs.object.get("zen.theme.accent-color").?.string);
     try testing.expectEqual(0, live.value.prefs.object.get("zen.view.window.scheme").?.integer);
     try testing.expectEqualStrings("#041c26", live.value.prefs.object.get("kosm.background").?.string);
     try testing.expectEqual(null, live.value.prefs.object.get("zen.mods.last-update"));
     try testing.expectEqual(1, live.value.flip.len);
     try testing.expectEqualStrings("zen.mods.updated-value-observer", live.value.flip[0]);
+    try testing.expectEqual(1, live.value.call.len);
+    try testing.expectEqualStrings("gZenThemePicker.handleDarkModeChange", live.value.call[0]);
     try testing.expect(std.mem.indexOf(u8, try fixture.planned(".zen/a.default/user.js"), "zen.mods.last-update") == null);
 }
 

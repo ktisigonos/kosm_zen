@@ -46,8 +46,8 @@ A change shows after Zen restarts, or at once with `profile.live` and Kosm Live 
 
 With `profile.live = true`, each profile also gets `kosm-live.json`: its prefs, the mod's values
 among them. Kosm Live, the extension `kosm_firefox` installs, sets them in the running Zen on
-every apply and has Zen rebuild its mods, so colors, the mod's stylesheet and every other pref
-change with no restart. `zen.mods.last-update` is then left to Zen. `kosm_base` turns it on
+every apply, has Zen rebuild its mods and recompute its accent and toolbar colors, so colors, the
+mod's stylesheet and every other pref change with no restart, just as after one. `zen.mods.last-update` is then left to Zen. `kosm_base` turns it on
 when the kosmos also has `kosm_firefox`.
 
 ### Rebuilding mods at every start

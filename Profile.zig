@@ -1,5 +1,6 @@
-//! Zen's about:config prefs for a set of profiles, written to each one's `user.js`, which
-//! Zen reads at startup. An app of its own: put a second one in the tree to give some
+//! Zen's about:config prefs and the kosm mod for a set of profiles: the prefs, the mod's values
+//! among them, go to each one's `user.js`, which Zen reads at startup, and the mod into its
+//! `chrome/zen-themes/kosm`. An app of its own: put a second one in the tree to give some
 //! profiles other prefs, and narrow the first one with `exclude`.
 
 const Profile = @This();
@@ -16,11 +17,16 @@ exclude: []const []const u8 = &.{},
 /// Who owns each `user.js`. Default: `default_target`.
 target: Target = default_target,
 /// How values are spelled. Null fields take the `userjs` adapter's: `#rrggbb`. A null color
-/// format becomes `#rrggbbaa` while the page background is not opaque, so its alpha is kept.
+/// format becomes `#rrggbbaa` while the page background or a color of `mod` is not opaque, so
+/// its alpha is kept.
 format: kosm.Format = .{},
 /// The prefs to write, named like about:config (`prefs.zen.theme.accent_color`). Null prefs are
 /// not written; with none set, no profile is looked for or written.
 prefs: Prefs = .{},
+/// The kosm mod's values. With none set, no mod is written. Default: none; `App` fills the
+/// null ones of its own profile from its fields, and `Mod.from(theme)` gives a second profile
+/// set the same.
+mod: Mod = .{},
 /// Prefs the app doesn't cover, written after its own, each named by its whole
 /// about:config name: `.{ .path = "zen.urlbar.behavior", .value = .{ .string = "float" } }`. A
 /// name a set pref or another extra already has fails the apply. Default: none.
@@ -28,6 +34,8 @@ extra: []const kosm.Setting = &.{},
 
 /// Zen's about:config prefs.
 pub const Prefs = @import("Prefs.zig");
+/// The kosm mod.
+pub const Mod = @import("Mod.zig");
 
 /// Who owns a profile's `user.js`.
 pub const Target = enum {
@@ -46,22 +54,25 @@ const block_id = "zen";
 
 /// Prefs from the theme: the accent from the accent role, the window scheme from the mode,
 /// page colors from the background and foreground roles, the page background at the theme's
-/// `background_alpha`, and the profile stylesheets kosm's CSS needs turned on. Every other pref
-/// is left to Zen.
+/// `background_alpha`. Every other pref is left to Zen, and the mod is empty.
 pub fn from(theme: kosm.Theme) Profile {
     var prefs: Prefs = .{};
     prefs.zen.theme.accent_color = theme.roles.accent;
     prefs.zen.view.window.scheme = if (theme.mode == .dark) .dark else .light;
     prefs.browser.display.background_color = theme.asBackground(theme.roles.background);
     prefs.browser.display.foreground_color = theme.roles.foreground;
-    prefs.toolkit.legacy_user_profile_customizations.stylesheets = true;
     return .{ .prefs = prefs };
 }
 
-/// Writes the set prefs, then the extras, to the `user.js` of every picked profile.
+/// Writes the set prefs, the mod's, then the extras, to the `user.js` of every picked profile,
+/// and the mod into each when it has a value.
 pub fn apply(given: Profile, output: *kosm.Output) !void {
     const self = given.withDerived();
-    const prefs = try self.withExtras(output);
+    const files = try std.mem.concat(output.allocator, u8, &.{ std.mem.trimEnd(u8, self.profiles, "/"), "/user.js" });
+    const writes_mod = !self.mod.isEmpty();
+    const mod_prefs = if (writes_mod) try self.mod.prefs(output, files) else &.{};
+    const mod_extras = try self.mod.extraPrefs(output.allocator);
+    const prefs = try self.withExtras(output, files, mod_prefs, mod_extras);
     if (prefs.table.len == 0) return;
     const exclude = try output.allocator.alloc([]const u8, self.exclude.len);
     for (self.exclude, exclude) |directory, *file| file.* = try prefsFile(output.allocator, directory);
@@ -72,33 +83,35 @@ pub fn apply(given: Profile, output: *kosm.Output) !void {
             .block => try output.block(.{ .file = file, .id = block_id, .lang = "userjs", .format = self.format }, prefs),
             .generate => try output.generate(.{ .file = file, .lang = "userjs", .format = self.format }, prefs),
         }
+        if (writes_mod) try Mod.write(output, std.Io.Dir.path.dirname(prefs_js).?, mod_prefs, mod_extras);
     }
 }
 
 /// The profile with what follows the page background's alpha, wherever it is null: the prefs
-/// that let the window be seen through, on only while it is not opaque, the Transparent Zen
-/// mod's background, and a color format that keeps alpha while it is not opaque. Written for
-/// an opaque background too, so a translucent kosmos applied before leaves nothing behind.
+/// that let the window be seen through, on only while it is not opaque, and a color format that
+/// keeps alpha while it or a color of the mod is not opaque. Written for an opaque background
+/// too, so a translucent kosmos applied before leaves nothing behind.
 fn withDerived(self: Profile) Profile {
     var profile = self;
+    if (self.mod.hasTranslucentColor() and profile.format.color == null) profile.format.color = .hex8;
     const background = self.prefs.browser.display.background_color orelse return profile;
     const translucent = background.alpha < 1;
     const prefs = &profile.prefs;
     if (prefs.browser.tabs.allow_transparent_browser == null) prefs.browser.tabs.allow_transparent_browser = translucent;
     if (prefs.zen.widget.linux.transparency == null) prefs.zen.widget.linux.transparency = translucent;
-    if (prefs.mod.sameerasw.zen_bg_color_enabled == null) prefs.mod.sameerasw.zen_bg_color_enabled = true;
-    if (prefs.mod.sameerasw.zen_transparency_color == null) prefs.mod.sameerasw.zen_transparency_color = background;
     if (translucent and profile.format.color == null) profile.format.color = .hex8;
     return profile;
 }
 
-/// The set prefs followed by the extras, checked so no name is written twice.
-fn withExtras(self: Profile, output: *kosm.Output) !kosm.Value {
+/// The set prefs, the mod's own, then the mod's extras and the profile's, checked so no name is
+/// written twice. `files` names the `user.js` files, for errors.
+fn withExtras(self: Profile, output: *kosm.Output, files: []const u8, mod_prefs: []const kosm.Setting.Keyed, mod_extras: []const kosm.Setting) !kosm.Value {
     const own = (try user_js.table(output.allocator, self.prefs)).table;
-    const prefs = try output.allocator.alloc(kosm.Setting.Keyed, own.len);
-    for (own, prefs) |pref, *slot| slot.* = .{ .path = pref.key, .keys = try output.allocator.dupe(?[]const u8, &.{pref.key}), .value = pref.value };
-    const files = try std.mem.concat(output.allocator, u8, &.{ std.mem.trimEnd(u8, self.profiles, "/"), "/user.js" });
-    const all = try kosm.Setting.withExtras(output, files, prefs, self.extra, .{ .paths = .whole_name });
+    var prefs: std.ArrayList(kosm.Setting.Keyed) = .empty;
+    for (own) |pref| try prefs.append(output.allocator, .{ .path = pref.key, .keys = try output.allocator.dupe(?[]const u8, &.{pref.key}), .value = pref.value });
+    try prefs.appendSlice(output.allocator, mod_prefs);
+    const extras = try std.mem.concat(output.allocator, kosm.Setting, &.{ mod_extras, self.extra });
+    const all = try kosm.Setting.withExtras(output, files, prefs.items, extras, .{ .paths = .whole_name });
     return kosm.Setting.tree(output.allocator, all);
 }
 
@@ -108,7 +121,10 @@ fn prefsFile(allocator: std.mem.Allocator, directories: []const u8) std.mem.Allo
 }
 
 const testing = std.testing;
+const App = @import("App.zig");
 const userjs = @import("kosm_userjs");
+const css = @import("kosm_css");
+const json = @import("kosm_json");
 
 const Fixture = struct {
     tmp: testing.TmpDir,
@@ -130,7 +146,7 @@ const Fixture = struct {
         fixture.output = .{
             .allocator = fixture.arena.allocator(),
             .home = fixture.home_buffer[0..length],
-            .adapters = &.{userjs.adapter},
+            .adapters = &.{ userjs.adapter, css.adapter, json.adapter },
             .plan = &fixture.plan,
             .diagnostics = &fixture.diagnostics,
             .warnings = &fixture.warnings,
@@ -173,9 +189,6 @@ const expected_block =
     \\user_pref("browser.display.background_color", "#041c26");
     \\user_pref("browser.display.foreground_color", "#a3c5cc");
     \\user_pref("browser.tabs.allow_transparent_browser", false);
-    \\user_pref("toolkit.legacyUserProfileCustomizations.stylesheets", true);
-    \\user_pref("mod.sameerasw.zen_bg_color_enabled", true);
-    \\user_pref("mod.sameerasw.zen_transparency_color", "#041c26");
     \\// kosm:end
     \\
 ;
@@ -276,7 +289,7 @@ test "extras follow the prefs under their whole names, and a name set twice fail
     try testing.expectEqualStrings("~/.zen/b.work/user.js", fixture.diagnostics.file);
 }
 
-test "a page background that is not opaque turns on transparency, the mod's background and alpha in colors, an opaque one turns transparency off; set prefs win" {
+test "a page background that is not opaque turns on transparency and alpha in colors; set prefs win" {
     var theme = test_theme;
     theme.background_alpha = 0.5;
     {
@@ -292,9 +305,6 @@ test "a page background that is not opaque turns on transparency, the mod's back
             \\user_pref("browser.display.background_color", "#041c2680");
             \\user_pref("browser.display.foreground_color", "#a3c5ccff");
             \\user_pref("browser.tabs.allow_transparent_browser", true);
-            \\user_pref("toolkit.legacyUserProfileCustomizations.stylesheets", true);
-            \\user_pref("mod.sameerasw.zen_bg_color_enabled", true);
-            \\user_pref("mod.sameerasw.zen_transparency_color", "#041c2680");
             \\// kosm:end
             \\
         , try fixture.planned(".zen/a.default/user.js"));
@@ -304,8 +314,6 @@ test "a page background that is not opaque turns on transparency, the mod's back
         try fixture.init(&.{.{ ".zen/a.default/prefs.js", "" }});
         defer fixture.deinit();
         var profile = from(theme);
-        profile.prefs.mod.sameerasw.zen_bg_color_enabled = false;
-        profile.prefs.mod.sameerasw.zen_transparency_color = kosm.hex("00000040");
         profile.prefs.zen.widget.linux.transparency = false;
         profile.prefs.browser.display.use_document_fonts = .never;
         try profile.apply(&fixture.output);
@@ -313,8 +321,143 @@ test "a page background that is not opaque turns on transparency, the mod's back
         for ([_][]const u8{
             "user_pref(\"zen.widget.linux.transparency\", false);\n",
             "user_pref(\"browser.display.use_document_fonts\", 0);\n",
-            "user_pref(\"mod.sameerasw.zen_bg_color_enabled\", false);\n",
-            "user_pref(\"mod.sameerasw.zen_transparency_color\", \"#00000040\");\n",
         }) |expected| try testing.expect(std.mem.find(u8, written, expected) != null);
     }
+}
+
+const mod_entry =
+    \\{
+    \\  "kosm": { "id": "kosm", "name": "Kosm", "preferences": "", "enabled": true }
+    \\}
+    \\
+;
+
+test "a profile with mod values gets them as prefs, the mod's stylesheet and list of string prefs, and its entry's preferences field" {
+    var fixture: Fixture = undefined;
+    try fixture.init(&.{ .{ ".zen/a.default/prefs.js", "" }, .{ ".zen/a.default/zen-themes.json", mod_entry } });
+    defer fixture.deinit();
+    var profile: Profile = .{ .target = .generate };
+    profile.mod.background = kosm.hex("041c2680");
+    profile.mod.button = kosm.hex("082e3f");
+    profile.mod.hovered = .{ .lightness = 0.1 };
+    profile.mod.containers.blue = kosm.hex("4d74af");
+    profile.mod.tab_switch = Mod.default_tab_switch;
+    profile.mod.extra = &.{.{ .path = "kosm.tab.radius", .value = .{ .raw = "8px" } }};
+    try profile.apply(&fixture.output);
+
+    const prefs = try fixture.planned(".zen/a.default/user.js");
+    try testing.expect(std.mem.startsWith(u8, prefs,
+        \\user_pref("kosm.background-enabled", true);
+        \\user_pref("kosm.tab-switch-enabled", true);
+        \\user_pref("kosm.background", "#041c2680");
+        \\user_pref("kosm.button", "#082e3fff");
+        \\user_pref("kosm.button-hovered", "#
+    ));
+    try testing.expect(std.mem.endsWith(u8, prefs,
+        \\user_pref("kosm.containers.blue", "#4d74afff");
+        \\user_pref("kosm.tab-switch-duration", "0.25s");
+        \\user_pref("kosm.tab-switch-curve", "cubic-bezier(0.175, 0.885, 0.32, 1.35)");
+        \\user_pref("kosm.tab.radius", "8px");
+        \\
+    ));
+
+    const list = try fixture.planned(".zen/a.default/chrome/zen-themes/kosm/preferences.json");
+    for ([_][]const u8{ "kosm.background", "kosm.button-hovered", "kosm.containers.blue", "kosm.tab-switch-curve", "kosm.tab.radius" }) |name| {
+        const entry = try std.mem.concat(fixture.arena.allocator(), u8, &.{ "\"property\": \"", name, "\",\n    \"label\": \"", name, "\",\n    \"type\": \"string\"" });
+        try testing.expect(std.mem.find(u8, list, entry) != null);
+    }
+    try testing.expect(std.mem.find(u8, list, "enabled") == null);
+
+    const stylesheet = try fixture.planned(".zen/a.default/chrome/zen-themes/kosm/chrome.css");
+    try testing.expect(std.mem.find(u8, stylesheet, "@media -moz-pref(\"kosm.background-enabled\") {") != null);
+    try testing.expect(std.mem.find(u8, stylesheet, "@media -moz-pref(\"kosm.tab-switch-enabled\") {") != null);
+
+    try testing.expectEqualStrings(
+        \\{
+        \\  "kosm": { "id": "kosm", "name": "Kosm", "preferences": "preferences.json", "enabled": true }
+        \\}
+        \\
+    , try fixture.planned(".zen/a.default/zen-themes.json"));
+}
+
+test "a mod without a background or tab switch turns those parts off" {
+    var fixture: Fixture = undefined;
+    try fixture.init(&.{ .{ ".zen/a.default/prefs.js", "" }, .{ ".zen/a.default/zen-themes.json", mod_entry } });
+    defer fixture.deinit();
+    var profile: Profile = .{ .target = .generate };
+    profile.mod.accent = kosm.hex("268078");
+    try profile.apply(&fixture.output);
+    try testing.expectEqualStrings(
+        \\user_pref("kosm.background-enabled", false);
+        \\user_pref("kosm.tab-switch-enabled", false);
+        \\user_pref("kosm.accent", "#268078");
+        \\
+    , try fixture.planned(".zen/a.default/user.js"));
+}
+
+test "a missing mod list or mod entry fails naming the file and what to add" {
+    var profile: Profile = .{};
+    profile.mod.accent = kosm.hex("268078");
+    {
+        var fixture: Fixture = undefined;
+        try fixture.init(&.{.{ ".zen/a.default/prefs.js", "" }});
+        defer fixture.deinit();
+        try testing.expectError(error.AppFailed, profile.apply(&fixture.output));
+        try testing.expectEqualStrings("~/.zen/a.default/zen-themes.json", fixture.diagnostics.file);
+        try testing.expect(std.mem.startsWith(u8, fixture.diagnostics.message(), "does not exist; start Zen once, then add the kosm mod's entry"));
+    }
+    {
+        var fixture: Fixture = undefined;
+        try fixture.init(&.{ .{ ".zen/a.default/prefs.js", "" }, .{ ".zen/a.default/zen-themes.json", "{ \"other\": { \"preferences\": \"x\" } }" } });
+        defer fixture.deinit();
+        try testing.expectError(error.AppFailed, profile.apply(&fixture.output));
+        try testing.expectEqualStrings("~/.zen/a.default/zen-themes.json", fixture.diagnostics.file);
+        try testing.expect(std.mem.startsWith(u8, fixture.diagnostics.message(), "has no mod 'kosm'; add the kosm mod's entry"));
+    }
+    {
+        var fixture: Fixture = undefined;
+        try fixture.init(&.{ .{ ".zen/a.default/prefs.js", "" }, .{ ".zen/a.default/zen-themes.json", "{ \"kosm\": { \"id\": \"kosm\" } }" } });
+        defer fixture.deinit();
+        try testing.expectError(error.AppFailed, profile.apply(&fixture.output));
+        try testing.expect(std.mem.startsWith(u8, fixture.diagnostics.message(), "mod 'kosm' has no 'preferences' field"));
+    }
+}
+
+test "a spring tab switch fails, since CSS has no springs" {
+    var fixture: Fixture = undefined;
+    try fixture.init(&.{ .{ ".zen/a.default/prefs.js", "" }, .{ ".zen/a.default/zen-themes.json", mod_entry } });
+    defer fixture.deinit();
+    var profile: Profile = .{};
+    profile.mod.tab_switch = .{ .duration = 0.3, .curve = .{ .spring = .{ .stiffness = 100, .damping = 10 } } };
+    try testing.expectError(error.AppFailed, profile.apply(&fixture.output));
+    try testing.expectEqualStrings("~/.zen/*/user.js", fixture.diagnostics.file);
+    try testing.expectEqualStrings("tab_switch.curve is a spring, which CSS cannot animate; use a bezier", fixture.diagnostics.message());
+}
+
+test "a mod extra named like another pref fails naming both" {
+    var fixture: Fixture = undefined;
+    try fixture.init(&.{ .{ ".zen/a.default/prefs.js", "" }, .{ ".zen/a.default/zen-themes.json", mod_entry } });
+    defer fixture.deinit();
+    var profile: Profile = .{};
+    profile.mod.accent = kosm.hex("268078");
+    profile.mod.extra = &.{.{ .path = "kosm.accent", .value = .{ .raw = "red" } }};
+    try testing.expectError(error.AppFailed, profile.apply(&fixture.output));
+    try testing.expectEqualStrings("extra 'kosm.accent' and setting 'kosm.accent' write the same key, or one inside the other; keep one", fixture.diagnostics.message());
+}
+
+test "the app fills its profile's mod where the profile's own values are null" {
+    var fixture: Fixture = undefined;
+    try fixture.init(&.{ .{ ".zen/a.default/prefs.js", "" }, .{ ".zen/a.default/zen-themes.json", mod_entry } });
+    defer fixture.deinit();
+    var app: App = .{ .accent = kosm.hex("268078"), .border = kosm.hex("4d74af"), .profile = .{ .target = .generate } };
+    app.profile.?.mod.accent = kosm.hex("ff0000");
+    try app.apply(&fixture.output);
+    const prefs = try fixture.planned(".zen/a.default/user.js");
+    try testing.expect(std.mem.find(u8, prefs, "user_pref(\"kosm.accent\", \"#ff0000\");\n") != null);
+    try testing.expect(std.mem.find(u8, prefs, "user_pref(\"kosm.border\", \"#4d74af\");\n") != null);
+
+    const no_profile: App = .{ .accent = kosm.hex("268078") };
+    const files_before = fixture.plan.files.items.len;
+    try no_profile.apply(&fixture.output);
+    try testing.expectEqual(files_before, fixture.plan.files.items.len);
 }

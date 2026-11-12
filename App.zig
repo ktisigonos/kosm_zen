@@ -1,236 +1,101 @@
-//! Zen Browser's theme colors, generated as `--kosm-*` custom properties into
-//! `file`. userChrome.css and userContent.css `@import` it and use them through `var()`.
-//! Its about:config prefs go to every profile's `user.js` through `profile`.
+//! Zen Browser: its colors and tab animation through the kosm mod, a Zen mod kosm writes into
+//! every profile, and its about:config prefs in every profile's `user.js`, both through
+//! `profile`. Zen reads them when it starts.
 
 const App = @This();
 
 const std = @import("std");
 const kosm = @import("kosm");
 
-/// The file kosm owns. Default: `~/.config/ZenBrowser/kosm.css`.
-file: []const u8 = "~/.config/ZenBrowser/kosm.css",
-/// How values are spelled, e.g. `.color = .hex_upper`. Null fields take the CSS
-/// adapter's: `#rrggbbaa`, then kosm's 6 float decimals.
-format: kosm.Format = .{},
-/// Text and icons (`--kosm-foreground`). null: not written. `from`: the foreground role.
+/// Text and icons (`--kosm-foreground`), for your own styles. null: not written. `from`: the
+/// foreground role.
 foreground: ?kosm.Color = null,
-/// Links, focused fields and the selected tab's text (`--kosm-accent`). null: not written.
-/// `from`: the accent role.
+/// Links, focused fields and the selected tab's text (`--kosm-accent`), for your own styles.
+/// null: not written. `from`: the accent role.
 accent: ?kosm.Color = null,
-/// Toolbars, sidebar, panels and new tab page (`--kosm-background`). null: not written.
-/// `from`: the background role.
+/// The window behind pages, the compact sidebar, the sidebar panel and glance
+/// (`--kosm-background`), alpha included. null: not written, and Zen keeps its own background.
+/// `from`: the background role at the theme's `background_alpha`.
 background: ?kosm.Color = null,
-/// Buttons and the toolbar (`--kosm-button`). null: not written. `from`: `surface.raised` of
-/// `background`.
+/// Buttons and the toolbar (`--kosm-button`), for your own styles. null: not written. `from`:
+/// `surface.raised` of `background`.
 button: ?kosm.Color = null,
-/// Buttons under the pointer (`--kosm-button-hovered`). null: `hovered` of `button` when both
-/// are set, else not written.
+/// Buttons under the pointer (`--kosm-button-hovered`), for your own styles. null: `hovered` of
+/// `button` when both are set, else not written.
 button_hovered: ?kosm.Color = null,
-/// Borders and outlines (`--kosm-border`). null: not written. `from`: the accent role.
+/// Glance's outline (`--kosm-border`). null: not written; glance keeps a faint white one.
+/// `from`: the accent role.
 border: ?kosm.Color = null,
-/// Container tab colors (`--kosm-containers-blue`, ...). null ones are not written. `from`:
-/// the wheel's hues.
+/// Container tab colors (`--kosm-containers-blue`, ...), for your own styles. null ones are not
+/// written. `from`: the wheel's hues.
 containers: Containers = .{},
 /// Makes `button_hovered` from `button` when it is null. null: nothing derived.
 /// `from`: the theme's `state.hovered`.
 hovered: ?kosm.Modifier = null,
-/// Custom properties the app doesn't cover, written after its own, the path's keys joined
-/// by `-`: `.{ .path = "kosm.tab.radius", .value = .{ .raw = "8px" } }` is `--kosm-tab-radius`.
-/// One whose path equals, contains or lies inside a set color's or another extra's fails the
-/// apply. Prefs have their own, `Profile.extra`. Default: none.
+/// How a page zooms in when its tab is selected. null: it doesn't. `from`:
+/// `Mod.default_tab_switch`, 0.25 s with a slight overshoot.
+tab_switch: ?Mod.TabSwitch = null,
+/// Properties the app doesn't cover, each a pref named by `path` that Zen sets as the property
+/// of that name with `.` as `-`: `.{ .path = "kosm.tab.radius", .value = .{ .raw = "8px" } }` is
+/// `--kosm-tab-radius`. A name another pref has fails the apply. Default: none.
 extra: []const kosm.Setting = &.{},
 /// Zen's logo in the theme's colors, for user styles to show. null: not written. `from`: the
 /// background and foreground.
 logo: ?Logo = null,
-/// The about:config prefs every profile gets. null: no prefs, only the CSS, e.g. on a
-/// machine without Zen. `from`: `Profile.from(theme)` for every profile.
+/// The profiles that get the kosm mod with the values above, and their about:config prefs.
+/// null: nothing but the logo is written, e.g. on a machine without Zen. `from`:
+/// `Profile.from(theme)` for every profile.
 profile: ?Profile = null,
 
 pub const Containers = @import("Containers.zig");
 pub const Logo = @import("Logo.zig");
+pub const Mod = @import("Mod.zig");
 pub const Profile = @import("Profile.zig");
 
-/// Colors from the theme.
+/// Colors and the tab animation from the theme, as `Mod.from` makes them, the logo, and prefs
+/// for every profile.
 pub fn from(theme: kosm.Theme) App {
-    const palette = theme.palette;
-    const background = theme.asBackground(theme.roles.background);
+    const values: Mod = .from(theme);
     return .{
-        .foreground = theme.roles.foreground,
-        .accent = theme.roles.accent,
-        .background = background,
-        .button = theme.variations.surface.raised.apply(background),
-        .border = theme.roles.accent,
-        .containers = .{
-            .blue = palette.blue,
-            .turquoise = palette.cyan,
-            .green = palette.green,
-            .yellow = palette.yellow,
-            .orange = palette.orange,
-            .red = palette.red,
-            .pink = palette.pink,
-            .purple = palette.purple,
-        },
-        .hovered = theme.variations.state.hovered,
-        .logo = .{ .background = background, .foreground = theme.roles.foreground },
+        .foreground = values.foreground,
+        .accent = values.accent,
+        .background = values.background,
+        .button = values.button,
+        .border = values.border,
+        .containers = values.containers,
+        .hovered = values.hovered,
+        .tab_switch = values.tab_switch,
+        .logo = .{ .background = values.background.?, .foreground = values.foreground.? },
         .profile = .from(theme),
     };
 }
 
-/// Writes every set color as a `--kosm-*` custom property, then the logo, then the prefs of
-/// `profile`.
+/// Writes the logo, then `profile` with the app's values in the mod wherever the profile's own
+/// are null.
 pub fn apply(self: App, output: *kosm.Output) !void {
-    const colors = try kosm.Setting.leaves(output.allocator, try self.properties(output.allocator));
-    const all = try kosm.Setting.withExtras(output, self.file, colors, self.extra, .{});
-    try output.generate(.{ .file = self.file, .lang = "css", .format = self.format }, try kosm.Setting.tree(output.allocator, all));
     if (self.logo) |logo| try logo.apply(output);
-    if (self.profile) |profile| try profile.apply(output);
+    var profile = self.profile orelse return;
+    profile.mod = try profile.mod.orElse(self.mod(), output.allocator);
+    try profile.apply(output);
 }
 
-/// The set colors under `kosm`, which the CSS adapter writes as `--kosm-*` properties.
-fn properties(self: App, allocator: std.mem.Allocator) std.mem.Allocator.Error!kosm.Value {
-    var colors: std.ArrayList(kosm.Value.Entry) = .empty;
-    try appendColors(allocator, &colors, .{
+/// The app's values as the mod's.
+pub fn mod(self: App) Mod {
+    return .{
         .foreground = self.foreground,
         .accent = self.accent,
         .background = self.background,
         .button = self.button,
-        .button_hovered = self.button_hovered orelse self.derivedButtonHovered(),
+        .button_hovered = self.button_hovered,
         .border = self.border,
-    });
-    var containers: std.ArrayList(kosm.Value.Entry) = .empty;
-    try appendColors(allocator, &containers, self.containers);
-    try colors.append(allocator, .{ .key = "containers", .value = .{ .table = containers.items } });
-    return .{ .table = try allocator.dupe(kosm.Value.Entry, &.{.{ .key = "kosm", .value = .{ .table = colors.items } }}) };
-}
-
-fn appendColors(allocator: std.mem.Allocator, entries: *std.ArrayList(kosm.Value.Entry), colors: anytype) std.mem.Allocator.Error!void {
-    inline for (@typeInfo(@TypeOf(colors)).@"struct".field_names) |name| {
-        if (@field(colors, name)) |color| try entries.append(allocator, .{ .key = name, .value = .{ .color = color } });
-    }
-}
-
-fn derivedButtonHovered(self: App) ?kosm.Color {
-    const hovered = self.hovered orelse return null;
-    const button = self.button orelse return null;
-    return hovered.apply(button);
+        .containers = self.containers,
+        .hovered = self.hovered,
+        .tab_switch = self.tab_switch,
+        .extra = self.extra,
+    };
 }
 
 const testing = std.testing;
-const css = @import("kosm_css");
-
-test "apply writes every color as a --kosm custom property" {
-    var tmp = testing.tmpDir(.{});
-    defer tmp.cleanup();
-    var home_buffer: [std.Io.Dir.max_path_bytes]u8 = undefined;
-    const home = home_buffer[0..try tmp.dir.realPath(testing.io, &home_buffer)];
-    var arena: std.heap.ArenaAllocator = .init(testing.allocator);
-    defer arena.deinit();
-    var plan: kosm.Plan = .init(testing.allocator, testing.io);
-    defer plan.deinit();
-    var diagnostics: kosm.Diagnostics = .{};
-    var warnings: kosm.Warnings = .init(arena.allocator());
-    var output: kosm.Output = .{
-        .allocator = arena.allocator(),
-        .home = home,
-        .adapters = &.{css.adapter},
-        .plan = &plan,
-        .diagnostics = &diagnostics,
-        .warnings = &warnings,
-        .app = "zen",
-    };
-
-    const theme = kosm.Theme.from(.{ .palette = .{ .black = kosm.hex("041c26"), .white = kosm.hex("a3c5cc"), .cyan = kosm.hex("268078") }, .mode = .dark });
-    var app = from(theme);
-    app.profile = null;
-    app.button = kosm.hex("082e3f");
-    app.containers.pink = kosm.hex("4d74af");
-    try app.apply(&output);
-    try testing.expectEqual(0, warnings.items.items.len);
-
-    const written = plan.files.items[0].new;
-    try testing.expect(std.mem.startsWith(u8, written, ":root {\n  --kosm-foreground: #a3c5ccff;\n  --kosm-accent: #268078ff;\n"));
-    try testing.expect(std.mem.indexOf(u8, written, "\n  --kosm-button: #082e3fff;\n  --kosm-button-hovered: #") != null);
-    try testing.expect(std.mem.indexOf(u8, written, "\n  --kosm-containers-pink: #4d74afff;\n") != null);
-    try testing.expect(std.mem.endsWith(u8, written, "\n}\n"));
-
-    const logo = plan.files.items[1];
-    try testing.expectEqualStrings("~/.config/ZenBrowser/ZenLogo.svg", logo.display_path);
-    try testing.expect(std.mem.indexOf(u8, logo.new, "<rect width=\"1024\" height=\"1024\" rx=\"225\" fill=\"#041c26ff\"/>") != null);
-    try testing.expectEqual(2, std.mem.count(u8, logo.new, "stroke=\"#a3c5ccff\""));
-    try testing.expectEqual(0, std.mem.count(u8, logo.new, "kosm."));
-}
-
-test "App{} writes an empty :root and no prefs, and without hovered no hover color is derived" {
-    var tmp = testing.tmpDir(.{});
-    defer tmp.cleanup();
-    var home_buffer: [std.Io.Dir.max_path_bytes]u8 = undefined;
-    const home = home_buffer[0..try tmp.dir.realPath(testing.io, &home_buffer)];
-    var arena: std.heap.ArenaAllocator = .init(testing.allocator);
-    defer arena.deinit();
-    var plan: kosm.Plan = .init(testing.allocator, testing.io);
-    defer plan.deinit();
-    var diagnostics: kosm.Diagnostics = .{};
-    var warnings: kosm.Warnings = .init(arena.allocator());
-    var output: kosm.Output = .{
-        .allocator = arena.allocator(),
-        .home = home,
-        .adapters = &.{css.adapter},
-        .plan = &plan,
-        .diagnostics = &diagnostics,
-        .warnings = &warnings,
-        .app = "zen",
-    };
-
-    const empty: App = .{};
-    try empty.apply(&output);
-    try testing.expectEqual(1, plan.files.items.len);
-    try testing.expectEqualStrings(":root {\n}\n", plan.files.items[0].new);
-
-    const app: App = .{ .button = kosm.hex("082e3f") };
-    try testing.expectEqual(null, app.derivedButtonHovered());
-}
-
-test "extras follow the colors as custom properties, and a clash fails naming both" {
-    var tmp = testing.tmpDir(.{});
-    defer tmp.cleanup();
-    var home_buffer: [std.Io.Dir.max_path_bytes]u8 = undefined;
-    const home = home_buffer[0..try tmp.dir.realPath(testing.io, &home_buffer)];
-    var arena: std.heap.ArenaAllocator = .init(testing.allocator);
-    defer arena.deinit();
-    var plan: kosm.Plan = .init(testing.allocator, testing.io);
-    defer plan.deinit();
-    var diagnostics: kosm.Diagnostics = .{};
-    var warnings: kosm.Warnings = .init(arena.allocator());
-    var output: kosm.Output = .{
-        .allocator = arena.allocator(),
-        .home = home,
-        .adapters = &.{css.adapter},
-        .plan = &plan,
-        .diagnostics = &diagnostics,
-        .warnings = &warnings,
-        .app = "zen",
-    };
-
-    var app: App = .{ .accent = kosm.hex("268078"), .containers = .{ .blue = kosm.hex("4d74af") } };
-    app.extra = &.{
-        .{ .path = "kosm.tab.radius", .value = .{ .raw = "8px" } },
-        .{ .path = "zen.colors.primary", .value = .{ .color = kosm.hex("082e3f") } },
-    };
-    try app.apply(&output);
-    try testing.expectEqualStrings(
-        \\:root {
-        \\  --kosm-accent: #268078ff;
-        \\  --kosm-containers-blue: #4d74afff;
-        \\  --kosm-tab-radius: 8px;
-        \\  --zen-colors-primary: #082e3fff;
-        \\}
-        \\
-    , plan.files.items[0].new);
-
-    app.extra = &.{.{ .path = "kosm.containers", .value = .{ .raw = "none" } }};
-    try testing.expectError(error.AppFailed, app.apply(&output));
-    try testing.expectEqualStrings("extra 'kosm.containers' and setting 'kosm.containers.blue' write the same key, or one inside the other; keep one", diagnostics.message());
-}
 
 test "the theme's background alpha reaches the background and the button raised from it, and a set color wins" {
     const palette: kosm.Palette = .{ .black = kosm.hex("041c26"), .white = kosm.hex("a3c5cc") };
@@ -243,5 +108,5 @@ test "the theme's background alpha reaches the background and the button raised 
     try testing.expectEqual(0.5, app.button.?.alpha);
     try testing.expectEqual(1, app.foreground.?.alpha);
     app.background = kosm.hex("000000");
-    try testing.expectEqual(1, app.background.?.alpha);
+    try testing.expectEqual(1, app.mod().background.?.alpha);
 }

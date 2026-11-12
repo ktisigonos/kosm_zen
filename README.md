@@ -1,37 +1,71 @@
 # kosm_zen
 
-Zen Browser for kosm: its theme colors as CSS custom properties, and its about:config prefs in
-every profile's `user.js`. The adapters of `kosm_css` and `kosm_userjs` write the files; this
-package brings them along (`kosm_zen.css_adapter`, `kosm_zen.userjs_adapter`).
+Zen Browser for kosm: its colors and tab animation through the kosm mod, a Zen mod kosm writes
+into every profile, and its about:config prefs in every profile's `user.js`. The adapters of
+`kosm_css`, `kosm_json` and `kosm_userjs` write the files; this package brings them along
+(`kosm_zen.css_adapter`, `kosm_zen.json_adapter`, `kosm_zen.userjs_adapter`).
 
-The app writes `~/.config/ZenBrowser/kosm.css`. Make your `userChrome.css` and
-`userContent.css` use it once: `@import` it first, then use the properties wherever a
-color goes:
+## The kosm mod
+
+The mod paints the window behind pages, the floating sidebar of compact mode, the sidebar panel
+and glance with the kosmos' background, alpha included, and zooms a page in when its tab is
+selected. It replaces the Transparent Zen mod. Its values are prefs (`kosm.background`, ...)
+in the `user.js` block below, which Zen sets as custom properties (`--kosm-background`, ...)
+when it starts, so your own `userChrome.css` can use them too, with no `@import`:
 
 ```css
-@import url("kosm.css");
-
-:root {
-  --zen-primary-color: var(--kosm-foreground) !important;
-  --toolbar-bgcolor: var(--kosm-button) !important;
-}
 .identity-color-blue {
   --identity-tab-color: var(--kosm-containers-blue) !important;
 }
 ```
 
+kosm writes the mod to `chrome/zen-themes/kosm/` in each profile, but only Zen and you add mods
+to Zen's list of mods. Once per profile, with Zen closed, add this entry to the profile's
+`zen-themes.json` (start Zen once first if the file is missing), inside its outer `{ }`, with a
+comma after the entry before it:
+
+```json
+"kosm": {
+  "id": "kosm",
+  "name": "Kosm",
+  "description": "The kosmos' colors and tab animation, written by kosm.",
+  "author": "kosm",
+  "version": "1.0.0",
+  "preferences": "preferences.json",
+  "enabled": true
+}
+```
+
+kosm keeps the entry's `preferences` field set (Zen reads the mod's prefs only while it is),
+so an apply fails naming the file when the entry is missing. Zen's mod updater leaves the mod
+alone: the mod store doesn't know it.
+
+A change shows after Zen restarts. Toggling the mod in Zen's settings doesn't reread
+`user.js`; it is needed only when a new kosm_zen changes the mod's stylesheet, which Zen
+reloads only then (or when Zen itself updates).
+
+### Moving from `kosm.css` and Transparent Zen
+
+1. Remove `@import url("kosm.css");` from your `userChrome.css` and `userContent.css`, and
+   delete `~/.config/ZenBrowser/kosm.css`; the `--kosm-*` properties now come from the mod in
+   the browser's own UI. Pages such as the new tab page don't see them.
+2. Remove the Transparent Zen mod in Zen's settings; the kosm mod does its background, tab
+   animation, transparent sidebar panel, glance and page tint.
+3. `toolkit.legacyUserProfileCustomizations.stylesheets` is no longer set; set
+   `prefs.toolkit.legacy_user_profile_customizations.stylesheets = true` yourself while you
+   keep a `userChrome.css`.
+4. Apply, add the mod's entry as above, and restart Zen.
+
 ## Fields
 
 | Field | Property | Default |
 |---|---|---|
-| `file` | | `~/.config/ZenBrowser/kosm.css` |
-| `format` | | `.{}`: the CSS adapter's `#rrggbbaa`, then 6 float decimals |
 | `foreground` | `--kosm-foreground` | null; `from`: the theme's foreground role |
 | `accent` | `--kosm-accent` | null; `from`: the theme's accent role |
-| `background` | `--kosm-background` | null; `from`: the theme's background role at its `background_alpha` |
+| `background` | `--kosm-background` | null: Zen keeps its own background; `from`: the theme's background role at its `background_alpha`. Paints the window, compact sidebar, sidebar panel and glance |
 | `button` | `--kosm-button` | null; `from`: `surface.raised` of `background` |
 | `button_hovered` | `--kosm-button-hovered` | null: `hovered` of `button` when both are set |
-| `border` | `--kosm-border` | null; `from`: the theme's accent role |
+| `border` | `--kosm-border` | null: glance keeps a faint white outline; `from`: the theme's accent role. Glance's outline |
 | `containers.blue` | `--kosm-containers-blue` | null; `from`: the wheel's blue |
 | `containers.turquoise` | `--kosm-containers-turquoise` | null; `from`: the wheel's cyan |
 | `containers.green` | `--kosm-containers-green` | null; `from`: the wheel's green |
@@ -41,18 +75,18 @@ color goes:
 | `containers.pink` | `--kosm-containers-pink` | null; `from`: the wheel's pink |
 | `containers.purple` | `--kosm-containers-purple` | null; `from`: the wheel's purple |
 | `hovered` | | null: nothing derived; `from`: the theme's `state.hovered` |
+| `tab_switch` | `--kosm-tab-switch-duration`, `--kosm-tab-switch-curve` | null: no animation; `from`: `Mod.default_tab_switch`, 0.25 s on `cubic-bezier(0.175, 0.885, 0.32, 1.35)`. `.duration` in seconds, `.curve` a `kosm.Curve` bezier (a spring fails the apply) for the zoom from 90%; the fade eases in and out |
 | `logo` | | null: not written; `from`: Zen's logo at `~/.config/ZenBrowser/ZenLogo.svg` (`file`, `format`, `background`, `foreground`), for a user style to show, e.g. on the new tab page |
-| `profile` | | null: no prefs, only the CSS; `from`: `Profile.from(theme)` |
-| `extra` | | `&.{}`: custom properties the app doesn't cover, by path |
+| `profile` | | null: only the logo is written; `from`: `Profile.from(theme)` |
+| `extra` | | `&.{}`: properties the app doesn't cover, by pref name |
 
-A null color is not written. A minimal config can skip `from`: `kosm_zen.App{}` writes a
-`kosm.css` with an empty `:root` and no prefs, so assign only what you want
-(`.{ .accent = kosm.hex("268078") }`).
+A null color is not written. The app's values go to `profile`'s mod wherever the profile's
+own (`profile.mod`) are null, so `kosm_zen.App{ .profile = .{} }` writes only what you assign
+(`.{ .accent = kosm.hex("268078"), .profile = .{} }`).
 
-`extra` writes other custom properties after the app's own, the path's keys joined by `-`:
-`.{ .path = "kosm.tab.radius", .value = .{ .raw = "8px" } }` is `--kosm-tab-radius`. An extra
-whose path equals, contains or lies inside a set color's or another extra's fails the apply naming
-both.
+`extra` writes other prefs the mod sets as properties, each named by its whole pref name, its
+value written as text: `.{ .path = "kosm.tab.radius", .value = .{ .raw = "8px" } }` is
+`--kosm-tab-radius`. A name another pref has fails the apply naming both.
 
 ## Prefs
 
@@ -72,11 +106,13 @@ A missing or empty `user.js` is created holding only the block. `target = .gener
 own the whole file instead.
 
 To give some profiles other prefs, put a second `kosm_zen.Profile` in your kosmos' tree and
-narrow the first one. Two profile sets that reach the same profile fail the apply.
+narrow the first one. Two profile sets that reach the same profile fail the apply. A second
+profile set gets the mod only through its own `mod`:
 
 ```zig
 result.zen.profile.?.exclude = &.{"~/.zen/*.work"};
 result.zen_work = kosm_zen.Profile.from(theme);
+result.zen_work.mod = kosm_zen.Mod.from(theme);
 result.zen_work.profiles = "~/.zen/*.work";
 result.zen_work.prefs.zen.view.window.scheme = .light;
 ```
@@ -90,8 +126,9 @@ On a machine without Zen, set `profile = null` (a profile glob matching nothing 
 | `profiles` | `~/.zen/*`: a glob of profile directories; only ones holding a `prefs.js` count |
 | `exclude` | none: globs of profile directories to leave out |
 | `target` | `.block` (`default_target`); `.generate` owns the whole `user.js` |
-| `format` | `.{}`: the `userjs` adapter's `#rrggbb` |
-| `prefs` | `.{}`, below; with no pref set, the profile writes nothing and needs no Zen |
+| `format` | `.{}`: the `userjs` adapter's `#rrggbb`, `#rrggbbaa` while the page background or a mod color is not opaque |
+| `prefs` | `.{}`, below; with no pref and no mod value set, the profile writes nothing and needs no Zen |
+| `mod` | `.{}`: no mod; the app fills its own profile's from its fields. `kosm_zen.Mod.from(theme)` gives the app's defaults. Its fields are the app's color fields, `hovered`, `tab_switch` and `extra` |
 | `extra` | `&.{}`: prefs the app doesn't cover, by their whole about:config name |
 
 `extra` writes prefs `prefs` doesn't cover, after its own, each named by its whole about:config
@@ -126,6 +163,4 @@ its own value is the group's `value` field: `prefs.zen.theme.gradient.value` is
 | `browser.display.foreground_color` | `browser.display.foreground_color` | white, black in light mode |
 | `browser.display.use_document_fonts` | `browser.display.use_document_fonts` (`.never`, `.allowed`) | null (Firefox: `.allowed`); `.never` shows every page in your fontconfig fonts |
 | `browser.tabs.allow_transparent_browser` | `browser.tabs.allow_transparent_browser` | null: true while the page background is not opaque, false while it is (Firefox: false) |
-| `mod.sameerasw.zen_bg_color_enabled` | `mod.sameerasw.zen_bg_color_enabled` (the Transparent Zen mod) | null: true while the page background is set |
-| `mod.sameerasw.zen_transparency_color` | `mod.sameerasw.zen_transparency_color` | null: the page background, opaque or not |
-| `toolkit.legacy_user_profile_customizations.stylesheets` | `toolkit.legacyUserProfileCustomizations.stylesheets` | true, which the CSS needs |
+| `toolkit.legacy_user_profile_customizations.stylesheets` | `toolkit.legacyUserProfileCustomizations.stylesheets` | null (Firefox: false); true makes Zen read `userChrome.css` and `userContent.css` |

@@ -1,0 +1,79 @@
+/* The kosm mod, which kosm writes: its values are prefs in user.js, which Zen sets as --kosm-*
+   properties at startup, so change them in your kosmos, not here. */
+
+/* The window's background, the page's behind it, and the floating compact sidebar. */
+@media -moz-pref("{kosm.background_enabled}") {
+  .zen-browser-generic-background {
+    --zen-main-browser-background: var(--kosm-background) !important;
+    --zen-main-browser-background-old: var(--kosm-background) !important;
+    --zen-main-browser-background-toolbar: var(--kosm-background) !important;
+    --zen-main-browser-background-toolbar-old: var(--kosm-background) !important;
+  }
+
+  .zen-toolbar-background {
+    background: transparent !important;
+  }
+
+  .browserStack > browser {
+    background-color: transparent !important;
+  }
+
+  #sidebar-box {
+    background-color: transparent !important;
+    box-shadow: none !important;
+  }
+
+  .zen-glance-background > vbox {
+    mask-image: linear-gradient(
+      to right,
+      black 0%,
+      black 3.7%,
+      transparent 6.7%,
+      transparent 93.3%,
+      black 96.3%,
+      black 100%
+    );
+    mask-repeat: no-repeat;
+    mask-size: 100% 100%;
+    transition: all var(--zen-hidden-toolbar-transition), mask-image 0.3s ease-in-out 1s !important;
+  }
+
+  .zen-glance-overlay > vbox {
+    background-color: var(--kosm-background) !important;
+    border-radius: 1.5em !important;
+    border: 1px solid var(--kosm-border, light-dark(#ffff, #fff3));
+    box-shadow: 4px 2px 60px light-dark(#0005, #0001);
+  }
+
+  .zen-glance-sidebar-container {
+    background-color: var(--kosm-background) !important;
+    border-radius: 10em !important;
+    margin: 0.5em;
+    padding: 0 !important;
+    border: 1px solid var(--kosm-border, light-dark(#ffff, #fff5));
+    box-shadow: 4px 2px 60px light-dark(#0005, #0001);
+    gap: 6px !important;
+    height: fit-content !important;
+    backdrop-filter: blur(10px) !important;
+
+    toolbarbutton {
+      margin: 0.5em !important;
+    }
+  }
+}
+
+/* The page zooming in when its tab is selected. */
+@media -moz-pref("{kosm.tab_switch_enabled}") {
+  #tabbrowser-tabpanels > hbox:not([zen-split="true"]):not(:has(.zen-glance-background)) {
+    transition:
+      scale var(--kosm-tab-switch-duration) var(--kosm-tab-switch-curve),
+      opacity var(--kosm-tab-switch-duration) ease-in-out !important;
+    scale: 0.9 !important;
+    opacity: 0;
+  }
+
+  #tabbrowser-tabpanels > hbox.deck-selected:not([zen-split="true"]) {
+    scale: 1 !important;
+    opacity: 1 !important;
+  }
+}

@@ -12,6 +12,10 @@
             .url = "git+https://git.nnstdios.com/ktisigonos/kosm_css?ref=master#346b3fce02010728c2aa9e838c978661a53e22e6",
             .hash = "kosm_css-0.0.0-oGvx3AUZAAB3d6Mm_oSrGXFiOXPc8oJ9YcDPW3lFIwvF",
         },
+        .kosm_json = .{
+            .url = "git+https://git.nnstdios.com/ktisigonos/kosm_json?ref=master#125138c7ee3c5d75c2dc102fada2d6f63e6a2c7f",
+            .hash = "kosm_json-0.0.0-F6-IdUN_AACuHqsF6DZs7qidRylJvAMBBu2eZ-6b-f6m",
+        },
         .kosm_userjs = .{
             .url = "git+https://git.nnstdios.com/ktisigonos/kosm_userjs?ref=master#b9560923899f9b6563e0d3d2d36e4476df44907e",
             .hash = "kosm_userjs-0.0.0-f1tp77BZAADd0mdzzTFIKYGSPq6GW03AK8N_nzAtJz-S",
@@ -24,6 +28,8 @@
         "App.zig",
         "Containers.zig",
         "Logo.zig",
+        "Mod.zig",
+        "mod",
         "logo.svg",
         "Profile.zig",
         "Prefs.zig",

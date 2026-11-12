@@ -62,8 +62,9 @@ pub const CompactSidebar = struct {
     blur: ?f64 = null,
 };
 
-/// The x-ray sidebar, unblurred, wide enough for long tab titles.
-pub const default_compact_sidebar: CompactSidebar = .{ .width = 400, .xray = true };
+/// The page behind the sidebar blurred, at Zen's own width, which dragging still changes. For
+/// x-ray, set `.{ .width = 400, .xray = true }`.
+pub const default_compact_sidebar: CompactSidebar = .{ .blur = 20 };
 
 /// The mod's id in Zen's mod list, `zen-themes.json`, and its folder under `chrome/zen-themes`.
 pub const id = "kosm";

@@ -31,8 +31,8 @@ containers: Containers = .{},
 hovered: ?kosm.Modifier = null,
 /// How a page zooms in when its tab is selected. null: it doesn't.
 tab_switch: ?TabSwitch = null,
-/// The floating sidebar of compact mode: its width, and what shows through it. null: Zen's own,
-/// the page showing through.
+/// The floating sidebar of compact mode: what fills it, and its width while it is x-ray. null:
+/// Zen's own, the page showing through.
 compact_sidebar: ?CompactSidebar = null,
 /// Properties the mod doesn't cover, each a pref named by `path` whose value Zen sets as the
 /// property of that name with `.` as `-`: `.{ .path = "kosm.tab.radius", .value = .{ .raw = "8px" } }`
@@ -51,18 +51,31 @@ pub const TabSwitch = struct {
 
 /// The floating sidebar of compact mode.
 pub const CompactSidebar = struct {
-    /// Pixels. The mod sets the sidebar's width so x-ray cuts out exactly what it covers; dragging
-    /// its edge no longer resizes it. null: Zen's own width, which x-ray can't follow.
-    width: ?f64 = null,
-    /// Cut the page out beneath the sidebar while it shows, so the sidebar lies over the window's
-    /// background, and the compositor's blur of what is behind the window, instead of the page's
-    /// text. CSS can't blur a page itself: Firefox draws pages in another process. Needs `width`.
-    /// Default: false.
-    xray: bool = false,
+    /// What is behind the sidebar's tabs. Default: `.none`.
+    fill: Fill = .none,
+    /// Pixels the sidebar is wide while it is x-ray, which fixes it so the cut-out follows it
+    /// exactly; dragging its edge no longer resizes it. Other fills keep Zen's own width.
+    /// Default: 400, wide enough for long tab titles.
+    width: f64 = 400,
+
+    pub const Fill = enum {
+        /// The page shows through the sidebar's background, as Zen draws it.
+        none,
+        /// The page is cut out beneath the sidebar while it shows, so the sidebar lies over the
+        /// window's background and the compositor's blur of what is behind the window. CSS can't
+        /// blur the page itself: Firefox draws pages in another process.
+        xray,
+        /// The sidebar is painted with the background made opaque, so nothing shows through.
+        /// Needs `background`.
+        solid,
+    };
 };
 
-/// The x-ray sidebar, wide enough for long tab titles.
-pub const default_compact_sidebar: CompactSidebar = .{ .width = 400, .xray = true };
+/// X-ray while the background is translucent, so the sidebar shows what the window does;
+/// over an opaque background Zen's own sidebar.
+pub fn defaultCompactSidebar(background: kosm.Color) CompactSidebar {
+    return .{ .fill = if (background.alpha < 1) .xray else .none };
+}
 
 /// The mod's id in Zen's mod list, `zen-themes.json`, and its folder under `chrome/zen-themes`.
 pub const id = "kosm";
@@ -75,8 +88,8 @@ const entry_field = "preferences";
 const Switches = struct {
     background_enabled: []const u8 = "kosm.background-enabled",
     tab_switch_enabled: []const u8 = "kosm.tab-switch-enabled",
-    compact_sidebar_width_enabled: []const u8 = "kosm.compact-sidebar-width-enabled",
     compact_sidebar_xray: []const u8 = "kosm.compact-sidebar-xray",
+    compact_sidebar_solid: []const u8 = "kosm.compact-sidebar-solid",
 };
 const switches: Switches = .{};
 
@@ -86,7 +99,7 @@ pub const default_tab_switch: TabSwitch = .{ .duration = 0.25, .curve = .cubicBe
 /// Colors from the theme: the foreground role, the background role at the theme's
 /// `background_alpha`, buttons raised from it and hovered by the theme's `state.hovered`, the
 /// accent role for the accent and border, the wheel's hues for containers,
-/// `default_tab_switch` and `default_compact_sidebar`.
+/// `default_tab_switch` and `defaultCompactSidebar`.
 pub fn from(theme: kosm.Theme) Mod {
     const palette = theme.palette;
     const background = theme.asBackground(theme.roles.background);
@@ -108,7 +121,7 @@ pub fn from(theme: kosm.Theme) Mod {
         },
         .hovered = theme.variations.state.hovered,
         .tab_switch = default_tab_switch,
-        .compact_sidebar = default_compact_sidebar,
+        .compact_sidebar = defaultCompactSidebar(background),
     };
 }
 
@@ -153,10 +166,10 @@ pub fn prefs(self: Mod, output: *kosm.Output, file: []const u8) kosm.Output.Erro
     try appendPref(allocator, &list, switches.background_enabled, .{ .boolean = self.background != null });
     try appendPref(allocator, &list, switches.tab_switch_enabled, .{ .boolean = self.tab_switch != null });
     const sidebar = self.compact_sidebar orelse CompactSidebar{};
-    if (sidebar.xray and sidebar.width == null)
-        return output.fail(file, "compact_sidebar.xray needs compact_sidebar.width, the width it cuts out of the page", .{});
-    try appendPref(allocator, &list, switches.compact_sidebar_width_enabled, .{ .boolean = sidebar.width != null });
-    try appendPref(allocator, &list, switches.compact_sidebar_xray, .{ .boolean = sidebar.xray });
+    if (sidebar.fill == .solid and self.background == null)
+        return output.fail(file, "compact_sidebar.fill .solid paints the sidebar with background made opaque, but background is null", .{});
+    try appendPref(allocator, &list, switches.compact_sidebar_xray, .{ .boolean = sidebar.fill == .xray });
+    try appendPref(allocator, &list, switches.compact_sidebar_solid, .{ .boolean = sidebar.fill == .solid });
     var colors = self;
     if (colors.button_hovered == null) colors.button_hovered = self.derivedButtonHovered();
     inline for (color_fields) |name| if (@field(colors, name)) |color| {
@@ -169,7 +182,7 @@ pub fn prefs(self: Mod, output: *kosm.Output, file: []const u8) kosm.Output.Erro
         try appendPref(allocator, &list, "kosm.tab-switch-duration", try joined(allocator, &.{ .{ .float = tab_switch.duration }, .{ .raw = "s" } }));
         try appendPref(allocator, &list, "kosm.tab-switch-curve", try curveValue(output, file, tab_switch.curve));
     }
-    if (sidebar.width) |width| try appendPref(allocator, &list, "kosm.compact-sidebar-width", try pixels(allocator, width));
+    if (sidebar.fill == .xray) try appendPref(allocator, &list, "kosm.compact-sidebar-width", try pixels(allocator, sidebar.width));
     return list.items;
 }
 

@@ -9,7 +9,7 @@ into every profile, and its about:config prefs in every profile's `user.js`. The
 
 The mod paints the window behind pages, the floating sidebar of compact mode, the sidebar panel
 and glance with the kosmos' background, alpha included, cuts the page out beneath the floating
-sidebar (x-ray), and zooms a page in when its tab is selected. It replaces the Transparent Zen mod. Its values are prefs (`kosm.background`, ...)
+sidebar (x-ray) or makes it solid, and zooms a page in when its tab is selected. It replaces the Transparent Zen mod. Its values are prefs (`kosm.background`, ...)
 in the `user.js` block below, which Zen sets as custom properties (`--kosm-background`, ...)
 when it starts, so your own `userChrome.css` can use them too, with no `@import`:
 
@@ -76,7 +76,7 @@ reloads only then (or when Zen itself updates).
 | `containers.purple` | `--kosm-containers-purple` | null; `from`: the wheel's purple |
 | `hovered` | | null: nothing derived; `from`: the theme's `state.hovered` |
 | `tab_switch` | `--kosm-tab-switch-duration`, `--kosm-tab-switch-curve` | null: no animation; `from`: `Mod.default_tab_switch`, 0.25 s on `cubic-bezier(0.175, 0.885, 0.32, 1.35)`. `.duration` in seconds, `.curve` a `kosm.Curve` bezier (a spring fails the apply) for the zoom from 90%; the fade eases in and out |
-| `compact_sidebar` | `--kosm-compact-sidebar-width` | null: Zen's own sidebar, the page showing through; `from`: `Mod.default_compact_sidebar`, `.{ .width = 400, .xray = true }`. `.width` (px) fixes the floating sidebar's width (dragging no longer resizes it); `.xray` cuts the page out beneath it while it shows, so it lies over the window's background and your compositor's blur (needs `.width`). CSS can't blur pages: Firefox draws them in another process |
+| `compact_sidebar` | `--kosm-compact-sidebar-width` | null: Zen's own sidebar, the page showing through; `from`: `.{ .fill = .xray }` while `background` is translucent, else `.{ .fill = .none }`. `.fill`: `.none` lets the page show through, `.xray` cuts the page out beneath the sidebar (sliding with it) so it lies over the window's background and your compositor's blur, `.solid` paints it with `background` made opaque. `.width` (px, default 400) fixes the sidebar's width while it is x-ray, so dragging no longer resizes it. CSS can't blur pages: Firefox draws them in another process |
 | `logo` | | null: not written; `from`: Zen's logo at `~/.config/ZenBrowser/ZenLogo.svg` (`file`, `format`, `background`, `foreground`), for a user style to show, e.g. on the new tab page |
 | `profile` | | null: only the logo is written; `from`: `Profile.from(theme)` |
 | `extra` | | `&.{}`: properties the app doesn't cover, by pref name |

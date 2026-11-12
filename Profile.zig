@@ -349,8 +349,8 @@ test "a profile with mod values gets them as prefs, the mod's stylesheet and lis
     try testing.expect(std.mem.startsWith(u8, prefs,
         \\user_pref("kosm.background-enabled", true);
         \\user_pref("kosm.tab-switch-enabled", true);
-        \\user_pref("kosm.compact-sidebar-width-enabled", false);
         \\user_pref("kosm.compact-sidebar-xray", false);
+        \\user_pref("kosm.compact-sidebar-solid", false);
         \\user_pref("kosm.background", "#041c2680");
         \\user_pref("kosm.button", "#082e3fff");
         \\user_pref("kosm.button-hovered", "#
@@ -392,8 +392,8 @@ test "a mod without a background, tab switch or compact sidebar turns those part
     try testing.expectEqualStrings(
         \\user_pref("kosm.background-enabled", false);
         \\user_pref("kosm.tab-switch-enabled", false);
-        \\user_pref("kosm.compact-sidebar-width-enabled", false);
         \\user_pref("kosm.compact-sidebar-xray", false);
+        \\user_pref("kosm.compact-sidebar-solid", false);
         \\user_pref("kosm.accent", "#268078");
         \\
     , try fixture.planned(".zen/a.default/user.js"));
@@ -466,27 +466,35 @@ test "the app fills its profile's mod where the profile's own values are null" {
     try testing.expectEqual(files_before, fixture.plan.files.items.len);
 }
 
-test "the compact sidebar's width and x-ray become switches and a pixel pref, and x-ray without a width fails" {
+test "the compact sidebar's fill becomes switches, x-ray writes its width, and solid without a background fails" {
     var fixture: Fixture = undefined;
     try fixture.init(&.{ .{ ".zen/a.default/prefs.js", "" }, .{ ".zen/a.default/zen-themes.json", mod_entry } });
     defer fixture.deinit();
     var profile: Profile = .{ .target = .generate };
-    profile.mod.compact_sidebar = .{ .width = 240, .xray = true };
+    profile.mod.compact_sidebar = .{ .fill = .xray, .width = 240 };
     try profile.apply(&fixture.output);
     try testing.expectEqualStrings(
         \\user_pref("kosm.background-enabled", false);
         \\user_pref("kosm.tab-switch-enabled", false);
-        \\user_pref("kosm.compact-sidebar-width-enabled", true);
         \\user_pref("kosm.compact-sidebar-xray", true);
+        \\user_pref("kosm.compact-sidebar-solid", false);
         \\user_pref("kosm.compact-sidebar-width", "240px");
         \\
     , try fixture.planned(".zen/a.default/user.js"));
     const stylesheet = try fixture.planned(".zen/a.default/chrome/zen-themes/kosm/chrome.css");
     try testing.expect(std.mem.find(u8, stylesheet, "@media -moz-pref(\"kosm.compact-sidebar-xray\") {") != null);
+    try testing.expect(std.mem.find(u8, stylesheet, "@media -moz-pref(\"kosm.compact-sidebar-solid\") {") != null);
     const list = try fixture.planned(".zen/a.default/chrome/zen-themes/kosm/preferences.json");
     try testing.expect(std.mem.find(u8, list, "\"property\": \"kosm.compact-sidebar-width\"") != null);
 
-    profile.mod.compact_sidebar = .{ .xray = true };
+    profile.mod.compact_sidebar = .{ .fill = .solid };
     try testing.expectError(error.AppFailed, profile.apply(&fixture.output));
-    try testing.expectEqualStrings("compact_sidebar.xray needs compact_sidebar.width, the width it cuts out of the page", fixture.diagnostics.message());
+    try testing.expectEqualStrings("compact_sidebar.fill .solid paints the sidebar with background made opaque, but background is null", fixture.diagnostics.message());
+}
+
+test "the compact sidebar is x-ray by default only while the background is translucent" {
+    var theme = test_theme;
+    try testing.expectEqual(.none, Mod.from(theme).compact_sidebar.?.fill);
+    theme.background_alpha = 0.5;
+    try testing.expectEqual(.xray, Mod.from(theme).compact_sidebar.?.fill);
 }

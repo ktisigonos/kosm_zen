@@ -40,11 +40,26 @@ kosm keeps the entry's `preferences` field set (Zen reads the mod's prefs only w
 so an apply fails naming the file when the entry is missing. Zen's mod updater leaves the mod
 alone: the mod store doesn't know it.
 
-A change shows after Zen restarts. Zen rebuilds mod stylesheets only when it checks the mod
-store for updates, so while a profile gets the mod kosm sets `zen.mods.last-update` to -1,
-which makes Zen check a moment after every start; a new kosm_zen's stylesheet then shows after
-a restart too. Set `prefs.zen.mods.last_update` to keep Zen's own schedule; a new stylesheet
-then needs a mod toggled in Zen's settings.
+A change shows after Zen restarts.
+
+### Rebuilding mods at every start
+
+Zen reads the mod's values (the prefs) at every start, but rebuilds mod stylesheets only when
+it checks the mod store for updates, normally every few days. So that a new kosm_zen's
+stylesheet also shows after a restart, kosm sets `zen.mods.last-update` to -1 while a profile
+gets the mod, which makes Zen check a moment after every start. That doesn't slow the start:
+Zen checks once the window is up. In return, Zen asks the mod store about each of your mods at
+every start, a changed stylesheet shows a beat after the window opens, and your other mods
+update at every start rather than every few days.
+
+To keep Zen's own schedule, give the pref any value of your own, e.g. 0:
+
+```zig
+result.zen.profile.?.prefs.zen.mods.last_update = 0;
+```
+
+Then, after a kosm_zen update changes the mod's stylesheet, toggle any mod off and on in Zen's
+settings once, or wait for Zen's next update check.
 
 ### Moving from `kosm.css` and Transparent Zen
 

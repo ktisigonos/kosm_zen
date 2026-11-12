@@ -91,21 +91,61 @@
   }
 }
 
-/* X-ray: the page is cut out beneath the floating sidebar while it shows. */
+/* X-ray: a rounded hole the shape of the floating sidebar is cut out of the page while the
+   sidebar shows. Zen floats the sidebar half its float offset from the window's edge, the float
+   being the element separation or 10px without padding, and rounds it by its inner radius less
+   6px without padding; the page itself sits one separation in. */
 @media -moz-pref("{kosm.compact_sidebar_xray}") {
+  :root {
+    --kosm-sidebar-float: var(--zen-element-separation);
+    --kosm-sidebar-radius-fix: 0px;
+  }
+
+  :root[zen-no-padding='true'] {
+    --kosm-sidebar-float: 10px;
+    --kosm-sidebar-radius-fix: 6px;
+  }
+
   :root[zen-compact-mode='true']:has(#navigator-toolbox:is([zen-has-hover], [zen-user-show], [zen-has-empty-tab], [flash-popup], [has-popup-menu], [movingtab], [zen-compact-mode-active])) #tabbrowser-tabpanels {
-    mask-image: linear-gradient(
-      to right,
-      transparent calc(var(--kosm-compact-sidebar-width) + 10px),
-      black calc(var(--kosm-compact-sidebar-width) + 10px)
-    ) !important;
+    --kosm-hole-inset: calc(var(--kosm-sidebar-float) / 2 - var(--zen-element-separation));
+    --kosm-hole-width: var(--kosm-compact-sidebar-width);
+    --kosm-hole-radius: max(0px, calc(var(--zen-native-inner-radius) - var(--kosm-sidebar-radius-fix)));
+    --kosm-hole-far: calc(var(--kosm-hole-inset) + var(--kosm-hole-width) - 2 * var(--kosm-hole-radius));
+    --kosm-hole-corner: radial-gradient(circle closest-side, black 98%, transparent);
+    --kosm-hole-fill: linear-gradient(black, black);
+
+    mask-image:
+      var(--kosm-hole-fill), var(--kosm-hole-fill), var(--kosm-hole-fill),
+      var(--kosm-hole-corner), var(--kosm-hole-corner), var(--kosm-hole-corner), var(--kosm-hole-corner) !important;
+    mask-size:
+      100% 100%,
+      var(--kosm-hole-width) calc(100% - 2 * var(--kosm-hole-inset) - 2 * var(--kosm-hole-radius)),
+      calc(var(--kosm-hole-width) - 2 * var(--kosm-hole-radius)) calc(100% - 2 * var(--kosm-hole-inset)),
+      calc(2 * var(--kosm-hole-radius)) calc(2 * var(--kosm-hole-radius)),
+      calc(2 * var(--kosm-hole-radius)) calc(2 * var(--kosm-hole-radius)),
+      calc(2 * var(--kosm-hole-radius)) calc(2 * var(--kosm-hole-radius)),
+      calc(2 * var(--kosm-hole-radius)) calc(2 * var(--kosm-hole-radius)) !important;
+    mask-position:
+      0 0,
+      left var(--kosm-hole-inset) top calc(var(--kosm-hole-inset) + var(--kosm-hole-radius)),
+      left calc(var(--kosm-hole-inset) + var(--kosm-hole-radius)) top var(--kosm-hole-inset),
+      left var(--kosm-hole-inset) top var(--kosm-hole-inset),
+      left var(--kosm-hole-far) top var(--kosm-hole-inset),
+      left var(--kosm-hole-inset) bottom var(--kosm-hole-inset),
+      left var(--kosm-hole-far) bottom var(--kosm-hole-inset) !important;
+    mask-repeat: no-repeat !important;
+    /* The first layer is the whole page; the hole, the union of the rest, is taken out of it. */
+    mask-composite: exclude, add, add, add, add, add, add !important;
   }
 
   :root[zen-compact-mode='true'][zen-right-side='true']:has(#navigator-toolbox:is([zen-has-hover], [zen-user-show], [zen-has-empty-tab], [flash-popup], [has-popup-menu], [movingtab], [zen-compact-mode-active])) #tabbrowser-tabpanels {
-    mask-image: linear-gradient(
-      to left,
-      transparent calc(var(--kosm-compact-sidebar-width) + 10px),
-      black calc(var(--kosm-compact-sidebar-width) + 10px)
-    ) !important;
+    mask-position:
+      0 0,
+      right var(--kosm-hole-inset) top calc(var(--kosm-hole-inset) + var(--kosm-hole-radius)),
+      right calc(var(--kosm-hole-inset) + var(--kosm-hole-radius)) top var(--kosm-hole-inset),
+      right var(--kosm-hole-inset) top var(--kosm-hole-inset),
+      right var(--kosm-hole-far) top var(--kosm-hole-inset),
+      right var(--kosm-hole-inset) bottom var(--kosm-hole-inset),
+      right var(--kosm-hole-far) bottom var(--kosm-hole-inset) !important;
   }
 }

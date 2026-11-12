@@ -29,6 +29,7 @@
         "Containers.zig",
         "Logo.zig",
         "Mod.zig",
+        "css_curve.zig",
         "mod",
         "logo.svg",
         "Profile.zig",

@@ -24,4 +24,5 @@ test {
     std.testing.refAllDecls(Profile);
     std.testing.refAllDecls(Mod);
     _ = @import("user_js.zig");
+    _ = @import("css_curve.zig");
 }

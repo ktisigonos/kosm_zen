@@ -49,6 +49,10 @@ pub const Target = enum {
 /// The target every profile starts with. Change it here to make owning the whole file the default.
 pub const default_target: Target = .block;
 
+/// The `zen.mods.last-update` that makes Zen check for mod updates, and so rebuild every mod's
+/// stylesheet, at startup.
+const rebuild_mods_at_startup = -1;
+
 /// The id of the block kosm owns in `user.js`.
 const block_id = "zen";
 
@@ -87,13 +91,15 @@ pub fn apply(given: Profile, output: *kosm.Output) !void {
     }
 }
 
-/// The profile with what follows the page background's alpha, wherever it is null: the prefs
-/// that let the window be seen through, on only while it is not opaque, and a color format that
-/// keeps alpha while it or a color of the mod is not opaque. Written for an opaque background
+/// The profile with what follows from its values, wherever it is null: the prefs that let the
+/// window be seen through, on only while the page background is not opaque, a color format that
+/// keeps alpha while it or a color of the mod is not opaque, and, with a mod, Zen rebuilding mod
+/// stylesheets at every start. Written for an opaque background
 /// too, so a translucent kosmos applied before leaves nothing behind.
 fn withDerived(self: Profile) Profile {
     var profile = self;
     if (self.mod.hasTranslucentColor() and profile.format.color == null) profile.format.color = .hex8;
+    if (!self.mod.isEmpty() and profile.prefs.zen.mods.last_update == null) profile.prefs.zen.mods.last_update = rebuild_mods_at_startup;
     const background = self.prefs.browser.display.background_color orelse return profile;
     const translucent = background.alpha < 1;
     const prefs = &profile.prefs;
@@ -347,6 +353,7 @@ test "a profile with mod values gets them as prefs, the mod's stylesheet and lis
 
     const prefs = try fixture.planned(".zen/a.default/user.js");
     try testing.expect(std.mem.startsWith(u8, prefs,
+        \\user_pref("zen.mods.last-update", -1);
         \\user_pref("kosm.background-enabled", true);
         \\user_pref("kosm.tab-switch-enabled", true);
         \\user_pref("kosm.compact-sidebar-xray", false);
@@ -390,6 +397,7 @@ test "a mod without a background, tab switch or compact sidebar turns those part
     profile.mod.accent = kosm.hex("268078");
     try profile.apply(&fixture.output);
     try testing.expectEqualStrings(
+        \\user_pref("zen.mods.last-update", -1);
         \\user_pref("kosm.background-enabled", false);
         \\user_pref("kosm.tab-switch-enabled", false);
         \\user_pref("kosm.compact-sidebar-xray", false);
@@ -427,15 +435,17 @@ test "a missing mod list or mod entry fails naming the file and what to add" {
     }
 }
 
-test "a spring tab switch fails, since CSS has no springs" {
+test "a spring tab switch is sampled into CSS's linear() over its duration" {
     var fixture: Fixture = undefined;
     try fixture.init(&.{ .{ ".zen/a.default/prefs.js", "" }, .{ ".zen/a.default/zen-themes.json", mod_entry } });
     defer fixture.deinit();
     var profile: Profile = .{};
     profile.mod.tab_switch = .{ .duration = 0.3, .curve = .{ .spring = .{ .stiffness = 100, .damping = 10 } } };
-    try testing.expectError(error.AppFailed, profile.apply(&fixture.output));
-    try testing.expectEqualStrings("~/.zen/*/user.js", fixture.diagnostics.file);
-    try testing.expectEqualStrings("tab_switch.curve is a spring, which CSS cannot animate; use a bezier", fixture.diagnostics.message());
+    try profile.apply(&fixture.output);
+    const prefs = try fixture.planned(".zen/a.default/user.js");
+    try testing.expect(std.mem.find(u8, prefs, "user_pref(\"kosm.tab-switch-curve\", \"linear(0.000000 0%, ") != null);
+    const stylesheet = try fixture.planned(".zen/a.default/chrome/zen-themes/kosm/chrome.css");
+    try testing.expect(std.mem.find(u8, stylesheet, "transition: mask-position 0.25s linear(0.000000 0%, ") != null);
 }
 
 test "a mod extra named like another pref fails naming both" {
@@ -474,6 +484,7 @@ test "the compact sidebar's fill becomes switches, x-ray writes its width, and s
     profile.mod.compact_sidebar = .{ .fill = .xray, .width = 240 };
     try profile.apply(&fixture.output);
     try testing.expectEqualStrings(
+        \\user_pref("zen.mods.last-update", -1);
         \\user_pref("kosm.background-enabled", false);
         \\user_pref("kosm.tab-switch-enabled", false);
         \\user_pref("kosm.compact-sidebar-xray", true);
@@ -497,4 +508,15 @@ test "the compact sidebar is x-ray by default only while the background is trans
     try testing.expectEqual(.none, Mod.from(theme).compact_sidebar.?.fill);
     theme.background_alpha = 0.5;
     try testing.expectEqual(.xray, Mod.from(theme).compact_sidebar.?.fill);
+}
+
+test "a profile writing the mod makes Zen rebuild mod stylesheets at startup, unless last-update is set" {
+    var fixture: Fixture = undefined;
+    try fixture.init(&.{ .{ ".zen/a.default/prefs.js", "" }, .{ ".zen/a.default/zen-themes.json", mod_entry } });
+    defer fixture.deinit();
+    var profile: Profile = .{ .target = .generate };
+    profile.mod.accent = kosm.hex("268078");
+    profile.prefs.zen.mods.last_update = 0;
+    try profile.apply(&fixture.output);
+    try testing.expect(std.mem.startsWith(u8, try fixture.planned(".zen/a.default/user.js"), "user_pref(\"zen.mods.last-update\", 0);\n"));
 }

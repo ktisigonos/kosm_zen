@@ -40,9 +40,11 @@ kosm keeps the entry's `preferences` field set (Zen reads the mod's prefs only w
 so an apply fails naming the file when the entry is missing. Zen's mod updater leaves the mod
 alone: the mod store doesn't know it.
 
-A change shows after Zen restarts. Toggling the mod in Zen's settings doesn't reread
-`user.js`; it is needed only when a new kosm_zen changes the mod's stylesheet, which Zen
-reloads only then (or when Zen itself updates).
+A change shows after Zen restarts. Zen rebuilds mod stylesheets only when it checks the mod
+store for updates, so while a profile gets the mod kosm sets `zen.mods.last-update` to -1,
+which makes Zen check a moment after every start; a new kosm_zen's stylesheet then shows after
+a restart too. Set `prefs.zen.mods.last_update` to keep Zen's own schedule; a new stylesheet
+then needs a mod toggled in Zen's settings.
 
 ### Moving from `kosm.css` and Transparent Zen
 
@@ -75,7 +77,7 @@ reloads only then (or when Zen itself updates).
 | `containers.pink` | `--kosm-containers-pink` | null; `from`: the wheel's pink |
 | `containers.purple` | `--kosm-containers-purple` | null; `from`: the wheel's purple |
 | `hovered` | | null: nothing derived; `from`: the theme's `state.hovered` |
-| `tab_switch` | `--kosm-tab-switch-duration`, `--kosm-tab-switch-curve` | null: no animation; `from`: `Mod.default_tab_switch`, 0.25 s on `cubic-bezier(0.175, 0.885, 0.32, 1.35)`. `.duration` in seconds, `.curve` a `kosm.Curve` bezier (a spring fails the apply) for the zoom from 90%; the fade eases in and out |
+| `tab_switch` | `--kosm-tab-switch-duration`, `--kosm-tab-switch-curve` | null: no animation; `from`: `Mod.default_tab_switch`, 0.25 s on `cubic-bezier(0.175, 0.885, 0.32, 1.35)`. `.duration` in seconds, `.curve` a `kosm.Curve` for the zoom from 90% (a spring is cut off where the duration ends); the fade eases in and out |
 | `compact_sidebar` | `--kosm-compact-sidebar-width` | null: Zen's own sidebar, the page showing through; `from`: `.{ .fill = .xray }` while `background` is translucent, else `.{ .fill = .none }`. `.fill`: `.none` lets the page show through, `.xray` cuts the page out beneath the sidebar (sliding with it) so it lies over the window's background and your compositor's blur, `.solid` paints it with `background` made opaque. `.width` (px, default 400) fixes the sidebar's width while it is x-ray, so dragging no longer resizes it. CSS can't blur pages: Firefox draws them in another process |
 | `logo` | | null: not written; `from`: Zen's logo at `~/.config/ZenBrowser/ZenLogo.svg` (`file`, `format`, `background`, `foreground`), for a user style to show, e.g. on the new tab page |
 | `profile` | | null: only the logo is written; `from`: `Profile.from(theme)` |
@@ -159,6 +161,7 @@ its own value is the group's `value` field: `prefs.zen.theme.gradient.value` is
 | `zen.view.use_single_toolbar` | `zen.view.use-single-toolbar` | null (Zen: true) |
 | `zen.view.show_newtab_button_top` | `zen.view.show-newtab-button-top` | null (Zen: true) |
 | `zen.view.sidebar_expanded` | `zen.view.sidebar-expanded` | null (Zen: true) |
+| `zen.mods.last_update` | `zen.mods.last-update` (seconds since 1970) | null: -1 while the profile gets the mod, so Zen rebuilds mod stylesheets at every start; else Zen's own |
 | `zen.widget.linux.transparency` | `zen.widget.linux.transparency` | null: true while the page background is not opaque, false while it is (Zen: false) |
 | `browser.display.background_color` | `browser.display.background_color` | black, white in light mode, at the theme's `background_alpha` |
 | `browser.display.foreground_color` | `browser.display.foreground_color` | white, black in light mode |

@@ -7,6 +7,7 @@ const Mod = @This();
 
 const std = @import("std");
 const kosm = @import("kosm");
+const css_curve = @import("css_curve.zig");
 
 /// Text and icons (`--kosm-foreground`), for your own styles. null: not written.
 foreground: ?kosm.Color = null,
@@ -45,7 +46,7 @@ pub const Containers = @import("Containers.zig");
 pub const TabSwitch = struct {
     /// Seconds.
     duration: f64,
-    /// How the zoom moves; the fade eases in and out. A bezier: CSS has no springs.
+    /// How the zoom moves; the fade eases in and out. A spring is cut off where `duration` ends.
     curve: kosm.Curve,
 };
 
@@ -84,14 +85,21 @@ pub const id = "kosm";
 /// apply. Zen reads the mod's preferences only while the entry has it.
 const entry_field = "preferences";
 
-/// The prefs that turn the mod's parts on, which its CSS reads by name.
-const Switches = struct {
+/// What the mod's CSS reads by name: the prefs that turn its parts on, and Zen's own timing.
+const Stylesheet = struct {
     background_enabled: []const u8 = "kosm.background-enabled",
     tab_switch_enabled: []const u8 = "kosm.tab-switch-enabled",
     compact_sidebar_xray: []const u8 = "kosm.compact-sidebar-xray",
     compact_sidebar_solid: []const u8 = "kosm.compact-sidebar-solid",
+    /// How Zen slides the compact sidebar in, so the x-ray cut-out moves with it.
+    compact_sidebar_show: []const u8 = "",
 };
-const switches: Switches = .{};
+const switches: Stylesheet = .{};
+
+/// Zen's compact sidebar slides in over 0.25 s on this spring (its CSS samples it into
+/// `--zen-compact-mode-func`, which only the sidebar sees); it matches every sample to 0.0004.
+const zen_sidebar_show: kosm.Curve = .{ .spring = .{ .stiffness = 914.5, .damping = 49.6 } };
+const zen_sidebar_show_duration = 0.25;
 
 /// The animation Transparent Zen calls smooth: a slight overshoot.
 pub const default_tab_switch: TabSwitch = .{ .duration = 0.25, .curve = .cubicBezier(0.175, 0.885, 0.32, 1.35) };
@@ -180,7 +188,7 @@ pub fn prefs(self: Mod, output: *kosm.Output, file: []const u8) kosm.Output.Erro
     };
     if (self.tab_switch) |tab_switch| {
         try appendPref(allocator, &list, "kosm.tab-switch-duration", try joined(allocator, &.{ .{ .float = tab_switch.duration }, .{ .raw = "s" } }));
-        try appendPref(allocator, &list, "kosm.tab-switch-curve", try curveValue(output, file, tab_switch.curve));
+        try appendPref(allocator, &list, "kosm.tab-switch-curve", .{ .string = try css_curve.timingFunction(allocator, tab_switch.curve, tab_switch.duration) });
     }
     if (sidebar.fill == .xray) try appendPref(allocator, &list, "kosm.compact-sidebar-width", try pixels(allocator, sidebar.width));
     return list.items;
@@ -206,7 +214,9 @@ pub fn extraPrefs(self: Mod, allocator: std.mem.Allocator) std.mem.Allocator.Err
 pub fn write(output: *kosm.Output, directory: []const u8, own: []const kosm.Setting.Keyed, extras: []const kosm.Setting) kosm.Output.Error!void {
     const folder = try std.mem.concat(output.allocator, u8, &.{ directory, "/chrome/zen-themes/", id });
     const stylesheet = try std.mem.concat(output.allocator, u8, &.{ folder, "/chrome.css" });
-    try output.template(switches, .{ .file = stylesheet, .text = @embedFile("mod/chrome.css") });
+    var stylesheet_values = switches;
+    stylesheet_values.compact_sidebar_show = try css_curve.timingFunction(output.allocator, zen_sidebar_show, zen_sidebar_show_duration);
+    try output.template(stylesheet_values, .{ .file = stylesheet, .text = @embedFile("mod/chrome.css") });
 
     var entries: std.ArrayList(PreferenceEntry) = .empty;
     for (own) |pref| if (pref.value != .boolean) try entries.append(output.allocator, .{ .property = pref.path, .label = pref.path });
@@ -256,21 +266,6 @@ fn asText(allocator: std.mem.Allocator, value: kosm.Value) std.mem.Allocator.Err
         .string => value,
         else => joined(allocator, &.{value}),
     };
-}
-
-/// CSS's `cubic-bezier(x1, y1, x2, y2)`.
-fn curveValue(output: *kosm.Output, file: []const u8, curve: kosm.Curve) kosm.Output.Error!kosm.Value {
-    const bezier = switch (curve) {
-        .bezier => |bezier| bezier,
-        .spring => return output.fail(file, "tab_switch.curve is a spring, which CSS cannot animate; use a bezier", .{}),
-    };
-    return joined(output.allocator, &.{
-        .{ .raw = "cubic-bezier(" }, .{ .float = bezier.x1 },
-        .{ .raw = ", " },            .{ .float = bezier.y1 },
-        .{ .raw = ", " },            .{ .float = bezier.x2 },
-        .{ .raw = ", " },            .{ .float = bezier.y2 },
-        .{ .raw = ")" },
-    });
 }
 
 /// A field's pref and property name: `button_hovered` is `button-hovered`.

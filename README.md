@@ -7,8 +7,8 @@ into every profile, and its about:config prefs in every profile's `user.js`. The
 
 ## The kosm mod
 
-The mod paints the window behind pages, the floating sidebar of compact mode, the sidebar panel
-and glance with the kosmos' background, alpha included, cuts the page out beneath the floating
+The mod paints the window behind pages, the floating sidebar of compact mode, the sidebar panel,
+the open url bar and glance with the kosmos' background, alpha included, cuts the page out beneath the floating
 sidebar (x-ray) or makes it solid, and zooms a page in when its tab is selected. It replaces the Transparent Zen mod. Its values are prefs (`kosm.background`, ...)
 in the `user.js` block below, which Zen sets as custom properties (`--kosm-background`, ...)
 when it starts, so your own `userChrome.css` can use them too, with no `@import`:
@@ -87,7 +87,7 @@ settings once, or wait for Zen's next update check.
 |---|---|---|
 | `foreground` | `--kosm-foreground` | null; `from`: the theme's foreground role |
 | `accent` | `--kosm-accent` | null; `from`: the theme's accent role |
-| `background` | `--kosm-background` | null: Zen keeps its own background; `from`: the theme's background role at its `background_alpha`. Paints the window, compact sidebar, sidebar panel and glance |
+| `background` | `--kosm-background` | null: Zen keeps its own background; `from`: the theme's background role at its `background_alpha`. Paints the window, compact sidebar, sidebar panel, open url bar and glance |
 | `button` | `--kosm-button` | null; `from`: `surface.raised` of `background` |
 | `button_hovered` | `--kosm-button-hovered` | null: `hovered` of `button` when both are set |
 | `border` | `--kosm-border` | null: glance keeps a faint white outline; `from`: the theme's accent role. Glance's outline |

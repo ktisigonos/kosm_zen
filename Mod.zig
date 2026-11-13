@@ -1,6 +1,6 @@
 //! The kosm mod: a Zen mod kosm writes into every profile it reaches, which paints the window,
-//! the compact sidebar, the sidebar panel and glance with the kosmos' background and zooms a page
-//! in when its tab is selected. Its values are `kosm.*` prefs in `user.js`, which Zen sets as
+//! the compact sidebar, the sidebar panel, the open url bar and glance with the kosmos'
+//! background and zooms a page in when its tab is selected. Its values are `kosm.*` prefs in `user.js`, which Zen sets as
 //! `--kosm-*` properties when it starts, so a change shows after a restart.
 
 const Mod = @This();
@@ -14,7 +14,7 @@ foreground: ?kosm.Color = null,
 /// Links, focused fields and the selected tab's text (`--kosm-accent`), for your own styles.
 /// null: not written.
 accent: ?kosm.Color = null,
-/// The window behind pages, the compact sidebar, the sidebar panel and glance
+/// The window behind pages, the compact sidebar, the sidebar panel, the open url bar and glance
 /// (`--kosm-background`), alpha included. null: not written, and the mod leaves Zen's own
 /// background alone.
 background: ?kosm.Color = null,

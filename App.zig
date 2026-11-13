@@ -13,7 +13,7 @@ foreground: ?kosm.Color = null,
 /// Links, focused fields and the selected tab's text (`--kosm-accent`), for your own styles.
 /// null: not written. `from`: the accent role.
 accent: ?kosm.Color = null,
-/// The window behind pages, the compact sidebar, the sidebar panel and glance
+/// The window behind pages, the compact sidebar, the sidebar panel, the open url bar and glance
 /// (`--kosm-background`), alpha included. null: not written, and Zen keeps its own background.
 /// `from`: the background role at the theme's `background_alpha`.
 background: ?kosm.Color = null,

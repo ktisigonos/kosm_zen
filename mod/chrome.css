@@ -38,6 +38,13 @@
     transition: all var(--zen-hidden-toolbar-transition), mask-image 0.3s ease-in-out 1s !important;
   }
 
+  /* The url bar while it is open: floating in the middle, or extended in place. Zen paints it
+     opaque gray, or nearly so with its acrylic pref. */
+  #urlbar[breakout-extend] .urlbar-background {
+    --zen-urlbar-background-base: var(--kosm-background) !important;
+    --zen-urlbar-background-transparent: var(--kosm-background) !important;
+  }
+
   .zen-glance-overlay > vbox {
     background-color: var(--kosm-background) !important;
     border-radius: 1.5em !important;

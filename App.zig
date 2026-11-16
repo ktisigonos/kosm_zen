@@ -35,10 +35,22 @@ hovered: ?kosm.Modifier = null,
 /// How a page zooms in when its tab is selected. null: it doesn't. `from`:
 /// `Mod.default_tab_switch`, 0.25 s with a slight overshoot.
 tab_switch: ?Mod.TabSwitch = null,
-/// The floating sidebar of compact mode: what fills it (`.none`, `.xray`, `.solid`) and its
-/// width while it is x-ray. null: Zen's own, the page showing through. `from`:
-/// `Mod.defaultCompactSidebar`, x-ray at 400 px while `background` is translucent, else `.none`.
+/// The floating sidebar of compact mode: what fills it (`.none`, `.xray`, `.solid`). null: Zen's
+/// own, the page showing through. `from`: `Mod.defaultCompactSidebar`, x-ray while `background`
+/// is translucent, else `.none`.
 compact_sidebar: ?Mod.CompactSidebar = null,
+/// Pixels the tab bar (Zen's sidebar) is wide while it is expanded, in and out of compact mode,
+/// unless `compact_tab_bar_width` or `docked_tab_bar_width` is set; dragging its edge no longer
+/// resizes it. null: Zen's own, resizable, except that an x-ray compact sidebar is fixed at
+/// `Mod.default_tab_bar_width`, Zen's own default (186 px, 230 on macOS).
+tab_bar_width: ?f64 = null,
+/// Pixels the floating tab bar of compact mode is wide (`--kosm-compact-tab-bar-width`). null:
+/// `tab_bar_width`.
+compact_tab_bar_width: ?f64 = null,
+/// Pixels the tab bar is wide while docked beside pages, outside compact mode
+/// (`--kosm-docked-tab-bar-width`), even past Zen's `zen.view.sidebar-expanded.max-width`.
+/// null: `tab_bar_width`.
+docked_tab_bar_width: ?f64 = null,
 /// Properties the app doesn't cover, each a pref named by `path` that Zen sets as the property
 /// of that name with `.` as `-`: `.{ .path = "kosm.tab.radius", .value = .{ .raw = "8px" } }` is
 /// `--kosm-tab-radius`. A name another pref has fails the apply. Default: none.
@@ -97,6 +109,9 @@ pub fn mod(self: App) Mod {
         .hovered = self.hovered,
         .tab_switch = self.tab_switch,
         .compact_sidebar = self.compact_sidebar,
+        .tab_bar_width = self.tab_bar_width,
+        .compact_tab_bar_width = self.compact_tab_bar_width,
+        .docked_tab_bar_width = self.docked_tab_bar_width,
         .extra = self.extra,
     };
 }

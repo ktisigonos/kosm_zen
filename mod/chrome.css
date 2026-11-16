@@ -85,11 +85,36 @@
   }
 }
 
+/* The expanded tab bar's width, docked and in compact mode, over the width and max-width Zen
+   sets on the toolbox as you drag its edge (Zen leaves its max-width on in compact mode too). */
+@media -moz-pref("{kosm.docked_tab_bar_width_enabled}") {
+  :root[zen-sidebar-expanded='true']:not([zen-compact-mode='true']) #navigator-toolbox {
+    --zen-sidebar-width: var(--kosm-docked-tab-bar-width) !important;
+    --actual-zen-sidebar-width: var(--kosm-docked-tab-bar-width) !important;
+    width: var(--kosm-docked-tab-bar-width) !important;
+    max-width: var(--kosm-docked-tab-bar-width) !important;
+  }
+}
+
+@media -moz-pref("{kosm.compact_tab_bar_width_enabled}") {
+  :root[zen-sidebar-expanded='true'][zen-compact-mode='true'] #navigator-toolbox {
+    --zen-sidebar-width: var(--kosm-compact-tab-bar-width) !important;
+    --actual-zen-sidebar-width: var(--kosm-compact-tab-bar-width) !important;
+    width: var(--kosm-compact-tab-bar-width) !important;
+    max-width: var(--kosm-compact-tab-bar-width) !important;
+
+    #titlebar {
+      width: var(--kosm-compact-tab-bar-width) !important;
+    }
+  }
+}
+
 /* X-ray: a rounded hole the shape of the floating sidebar is cut out of the page, and slides in
    and out with it. Zen floats the sidebar half its float offset from the window's edge, the float
    being the element separation or 10px without padding, rounds it by its inner radius less 6px
    without padding, and hides it by sliding it out until one pixel past its float shows; the page
-   itself sits one separation in. */
+   itself sits one separation in. The sidebar keeps the tab bar's width even while collapsed, so
+   the hole always matches it. */
 @media -moz-pref("{kosm.compact_sidebar_xray}") {
   :root {
     --kosm-sidebar-float: var(--zen-element-separation);
@@ -102,18 +127,19 @@
   }
 
   :root[zen-compact-mode='true'] #navigator-toolbox {
-    --zen-sidebar-width: var(--kosm-compact-sidebar-width) !important;
-    --actual-zen-sidebar-width: var(--kosm-compact-sidebar-width) !important;
-    width: var(--kosm-compact-sidebar-width) !important;
+    --zen-sidebar-width: var(--kosm-compact-tab-bar-width) !important;
+    --actual-zen-sidebar-width: var(--kosm-compact-tab-bar-width) !important;
+    width: var(--kosm-compact-tab-bar-width) !important;
+    max-width: var(--kosm-compact-tab-bar-width) !important;
 
     #titlebar {
-      width: var(--kosm-compact-sidebar-width) !important;
+      width: var(--kosm-compact-tab-bar-width) !important;
     }
   }
 
   :root[zen-compact-mode='true'] #tabbrowser-tabpanels {
     --kosm-hole-inset: calc(var(--kosm-sidebar-float) / 2 - var(--zen-element-separation));
-    --kosm-hole-width: var(--kosm-compact-sidebar-width);
+    --kosm-hole-width: var(--kosm-compact-tab-bar-width);
     --kosm-hole-radius: max(0px, calc(var(--zen-native-inner-radius) - var(--kosm-sidebar-radius-fix)));
     --kosm-hole-shift: calc(-1 * (var(--kosm-hole-width) + var(--kosm-sidebar-float) - 1px));
     --kosm-hole-near: calc(var(--kosm-hole-inset) + var(--kosm-hole-shift));

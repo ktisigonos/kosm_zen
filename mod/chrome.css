@@ -200,7 +200,7 @@
 /* Solid: the floating sidebar painted with the background at full alpha. */
 @media -moz-pref("{kosm.compact_sidebar_solid}") {
   #navigator-toolbox .zen-toolbar-background.zen-browser-generic-background {
-    --zen-main-browser-background-toolbar: rgb(from var(--kosm-background) r g b) !important;
-    --zen-main-browser-background-toolbar-old: rgb(from var(--kosm-background) r g b) !important;
+    --zen-main-browser-background-toolbar: rgb(from var(--kosm-background) r g b / 1) !important;
+    --zen-main-browser-background-toolbar-old: rgb(from var(--kosm-background) r g b / 1) !important;
   }
 }

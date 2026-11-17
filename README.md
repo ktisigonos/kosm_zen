@@ -193,5 +193,5 @@ its own value is the group's `value` field: `prefs.zen.theme.gradient.value` is
 | `browser.display.background_color` | `browser.display.background_color` | black, white in light mode, at the theme's `background_alpha` |
 | `browser.display.foreground_color` | `browser.display.foreground_color` | white, black in light mode |
 | `browser.display.use_document_fonts` | `browser.display.use_document_fonts` (`.never`, `.allowed`) | null (Firefox: `.allowed`); `.never` shows every page in your fontconfig fonts |
-| `browser.tabs.allow_transparent_browser` | `browser.tabs.allow_transparent_browser` | null: true while the page background is not opaque, false while it is (Firefox: false) |
+| `browser.tabs.allow_transparent_browser` | `browser.tabs.allow_transparent_browser` | null: true while the page background is set, so pages styled transparent (as by Zen Internet) show the window's background (Firefox: false) |
 | `toolkit.legacy_user_profile_customizations.stylesheets` | `toolkit.legacyUserProfileCustomizations.stylesheets` | null (Firefox: false); true makes Zen read `userChrome.css` and `userContent.css` |

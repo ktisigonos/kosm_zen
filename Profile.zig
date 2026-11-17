@@ -118,11 +118,13 @@ pub fn apply(given: Profile, output: *kosm.Output) !void {
     }
 }
 
-/// The profile with what follows from its values, wherever it is null: the prefs that let the
-/// window be seen through, on only while the page background is not opaque, a color format that
-/// keeps alpha while it or a color of the mod is not opaque, and, with a mod and without `live`
-/// (Kosm Live has Zen rebuild them), Zen rebuilding mod stylesheets at every start. Written for an opaque background
-/// too, so a translucent kosmos applied before leaves nothing behind.
+/// The profile with what follows from its values, wherever it is null: with a page background,
+/// transparent pages showing the window's background at any alpha (else pages styled
+/// transparent, as by Zen Internet, show Zen's default color) and the window seen through only
+/// while it is not opaque; a color format that keeps alpha while it or a color of the mod is not
+/// opaque; and, with a mod and without `live` (Kosm Live has Zen rebuild them), Zen rebuilding
+/// mod stylesheets at every start. Written for an opaque background too, so a translucent
+/// kosmos applied before leaves nothing behind.
 fn withDerived(self: Profile) Profile {
     var profile = self;
     if (self.mod.hasTranslucentColor() and profile.format.color == null) profile.format.color = .hex8;
@@ -130,7 +132,7 @@ fn withDerived(self: Profile) Profile {
     const background = self.prefs.browser.display.background_color orelse return profile;
     const translucent = background.alpha < 1;
     const prefs = &profile.prefs;
-    if (prefs.browser.tabs.allow_transparent_browser == null) prefs.browser.tabs.allow_transparent_browser = translucent;
+    if (prefs.browser.tabs.allow_transparent_browser == null) prefs.browser.tabs.allow_transparent_browser = true;
     if (prefs.zen.widget.linux.transparency == null) prefs.zen.widget.linux.transparency = translucent;
     if (translucent and profile.format.color == null) profile.format.color = .hex8;
     return profile;
@@ -221,7 +223,7 @@ const expected_block =
     \\user_pref("zen.widget.linux.transparency", false);
     \\user_pref("browser.display.background_color", "#041c26");
     \\user_pref("browser.display.foreground_color", "#a3c5cc");
-    \\user_pref("browser.tabs.allow_transparent_browser", false);
+    \\user_pref("browser.tabs.allow_transparent_browser", true);
     \\// kosm:end
     \\
 ;

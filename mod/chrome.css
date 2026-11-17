@@ -114,8 +114,9 @@
    being the element separation or 10px without padding, rounds it by its inner radius less 6px
    without padding, and hides it by sliding it out until one pixel past its float shows; the page
    itself sits one separation in. The sidebar keeps the tab bar's width even while collapsed, so
-   the hole always matches it. The hole is a clip, not a mask: Firefox drops a mask on this
-   element for page elements with a backdrop-filter, which then show through the sidebar. */
+   the hole always matches it. Firefox ignores this mask for page elements with a
+   backdrop-filter, so those still show beneath the sidebar; a clip-path hole is turned into a
+   mask too, and only a rectangle clip escapes it. */
 @media -moz-pref("{kosm.compact_sidebar_xray}") {
   :root {
     --kosm-sidebar-float: var(--zen-element-separation);
@@ -144,31 +145,46 @@
     --kosm-hole-radius: max(0px, calc(var(--zen-native-inner-radius) - var(--kosm-sidebar-radius-fix)));
     --kosm-hole-shift: calc(-1 * (var(--kosm-hole-width) + var(--kosm-sidebar-float) - 1px));
     --kosm-hole-near: calc(var(--kosm-hole-inset) + var(--kosm-hole-shift));
-    --kosm-hole-left: var(--kosm-hole-near);
-    --kosm-hole-right: calc(var(--kosm-hole-near) + var(--kosm-hole-width));
-    --kosm-hole-top: var(--kosm-hole-inset);
-    --kosm-hole-bottom: calc(100% - var(--kosm-hole-inset));
+    --kosm-hole-band: calc(var(--kosm-hole-near) + var(--kosm-hole-radius));
+    --kosm-hole-far: calc(var(--kosm-hole-near) + var(--kosm-hole-width) - 2 * var(--kosm-hole-radius));
+    --kosm-hole-corner: radial-gradient(circle closest-side, black 98%, transparent);
+    --kosm-hole-fill: linear-gradient(black, black);
 
-    /* The whole page, then the hole, which evenodd takes out of it. */
-    clip-path: shape(evenodd from 0 0,
-      hline to 100%, vline to 100%, hline to 0, close,
-      move to calc(var(--kosm-hole-left) + var(--kosm-hole-radius)) var(--kosm-hole-top),
-      hline to calc(var(--kosm-hole-right) - var(--kosm-hole-radius)),
-      arc to var(--kosm-hole-right) calc(var(--kosm-hole-top) + var(--kosm-hole-radius)) of var(--kosm-hole-radius) cw,
-      vline to calc(var(--kosm-hole-bottom) - var(--kosm-hole-radius)),
-      arc to calc(var(--kosm-hole-right) - var(--kosm-hole-radius)) var(--kosm-hole-bottom) of var(--kosm-hole-radius) cw,
-      hline to calc(var(--kosm-hole-left) + var(--kosm-hole-radius)),
-      arc to var(--kosm-hole-left) calc(var(--kosm-hole-bottom) - var(--kosm-hole-radius)) of var(--kosm-hole-radius) cw,
-      vline to calc(var(--kosm-hole-top) + var(--kosm-hole-radius)),
-      arc to calc(var(--kosm-hole-left) + var(--kosm-hole-radius)) var(--kosm-hole-top) of var(--kosm-hole-radius) cw,
-      close) !important;
+    mask-image:
+      var(--kosm-hole-fill), var(--kosm-hole-fill), var(--kosm-hole-fill),
+      var(--kosm-hole-corner), var(--kosm-hole-corner), var(--kosm-hole-corner), var(--kosm-hole-corner) !important;
+    mask-size:
+      100% 100%,
+      var(--kosm-hole-width) calc(100% - 2 * var(--kosm-hole-inset) - 2 * var(--kosm-hole-radius)),
+      calc(var(--kosm-hole-width) - 2 * var(--kosm-hole-radius)) calc(100% - 2 * var(--kosm-hole-inset)),
+      calc(2 * var(--kosm-hole-radius)) calc(2 * var(--kosm-hole-radius)),
+      calc(2 * var(--kosm-hole-radius)) calc(2 * var(--kosm-hole-radius)),
+      calc(2 * var(--kosm-hole-radius)) calc(2 * var(--kosm-hole-radius)),
+      calc(2 * var(--kosm-hole-radius)) calc(2 * var(--kosm-hole-radius)) !important;
+    mask-position:
+      0 0,
+      left var(--kosm-hole-near) top calc(var(--kosm-hole-inset) + var(--kosm-hole-radius)),
+      left var(--kosm-hole-band) top var(--kosm-hole-inset),
+      left var(--kosm-hole-near) top var(--kosm-hole-inset),
+      left var(--kosm-hole-far) top var(--kosm-hole-inset),
+      left var(--kosm-hole-near) bottom var(--kosm-hole-inset),
+      left var(--kosm-hole-far) bottom var(--kosm-hole-inset) !important;
+    mask-repeat: no-repeat !important;
+    /* The first layer is the whole page; the hole, the union of the rest, is taken out of it. */
+    mask-composite: exclude, add, add, add, add, add, add !important;
     /* Zen hides the sidebar in 0.15s with ease. */
-    transition: clip-path 0.15s ease !important;
+    transition: mask-position 0.15s ease !important;
   }
 
   :root[zen-compact-mode='true'][zen-right-side='true'] #tabbrowser-tabpanels {
-    --kosm-hole-left: calc(100% - var(--kosm-hole-near) - var(--kosm-hole-width));
-    --kosm-hole-right: calc(100% - var(--kosm-hole-near));
+    mask-position:
+      0 0,
+      right var(--kosm-hole-near) top calc(var(--kosm-hole-inset) + var(--kosm-hole-radius)),
+      right var(--kosm-hole-band) top var(--kosm-hole-inset),
+      right var(--kosm-hole-near) top var(--kosm-hole-inset),
+      right var(--kosm-hole-far) top var(--kosm-hole-inset),
+      right var(--kosm-hole-near) bottom var(--kosm-hole-inset),
+      right var(--kosm-hole-far) bottom var(--kosm-hole-inset) !important;
   }
 
   :root[zen-compact-mode='true']:is(
@@ -177,7 +193,7 @@
   ) #tabbrowser-tabpanels {
     --kosm-hole-shift: 0px;
     /* Zen's own spring for showing the sidebar, generated by kosm. */
-    transition: clip-path 0.25s {kosm.compact_sidebar_show} !important;
+    transition: mask-position 0.25s {kosm.compact_sidebar_show} !important;
   }
 }
 

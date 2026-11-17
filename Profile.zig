@@ -499,7 +499,7 @@ test "a spring tab switch is sampled into CSS's linear() over its duration" {
     const prefs = try fixture.planned(".zen/a.default/user.js");
     try testing.expect(std.mem.find(u8, prefs, "user_pref(\"kosm.tab-switch-curve\", \"linear(0.000000 0%, ") != null);
     const stylesheet = try fixture.planned(".zen/a.default/chrome/zen-themes/kosm/chrome.css");
-    try testing.expect(std.mem.find(u8, stylesheet, "transition: clip-path 0.25s linear(0.000000 0%, ") != null);
+    try testing.expect(std.mem.find(u8, stylesheet, "transition: mask-position 0.25s linear(0.000000 0%, ") != null);
 }
 
 test "a mod extra named like another pref fails naming both" {

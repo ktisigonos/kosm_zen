@@ -73,7 +73,8 @@ pub const CompactSidebar = struct {
         /// window's background and the compositor's blur of what is behind the window. CSS can't
         /// blur the page itself: Firefox draws pages in another process. The sidebar is fixed at
         /// `compact_tab_bar_width`, `tab_bar_width` or `default_tab_bar_width`, so the cut-out
-        /// follows it exactly.
+        /// follows it exactly. Firefox leaves page elements with a backdrop-filter uncut, so
+        /// on sites using one (YouTube's header, blurred cards) those show beneath the sidebar.
         xray,
         /// The sidebar is painted with the background made opaque, so nothing shows through.
         /// Needs `background`.

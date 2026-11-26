@@ -5,8 +5,8 @@
     .minimum_zig_version = "0.17.0",
     .dependencies = .{
         .kosm = .{
-            .url = "git+https://git.nnstdios.com/ktisigonos/kosm?ref=master#7cac78ff369e4b85f732290cd4b415e35596c813",
-            .hash = "kosm-0.0.0-YCShsjJhGwChJLifPnNgdKvF6BvskAvM98V1N3cjOqMF",
+            .url = "git+https://git.nnstdios.com/ktisigonos/kosm?ref=master#d00140fbc9fa4f739cd20dbbc48c01ffce7abcb1",
+            .hash = "kosm-0.0.0-YCShst2LHABjvZe3qRcG6GT7UxPnHqQYk4AOwKoAq0Kl",
         },
         .kosm_css = .{
             .url = "git+https://git.nnstdios.com/ktisigonos/kosm_css?ref=master#d0b096c8921d72e3ba26f6a3ab3ad39fc510cb6c",

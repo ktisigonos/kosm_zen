@@ -5,6 +5,8 @@ into every profile, and its about:config prefs in every profile's `user.js`. The
 `kosm_css`, `kosm_json` and `kosm_userjs` write the files; this package brings them along
 (`kosm_zen.css_adapter`, `kosm_zen.json_adapter`, `kosm_zen.userjs_adapter`).
 
+`kosm doctor` checks that Zen is installed, as the `zen-browser` command.
+
 ## The kosm mod
 
 The mod paints the window behind pages, the floating sidebar of compact mode, the sidebar panel,

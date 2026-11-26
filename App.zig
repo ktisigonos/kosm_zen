@@ -87,6 +87,12 @@ pub fn from(theme: kosm.Theme) App {
     };
 }
 
+/// What `kosm doctor` checks: Zen installed, as the `zen-browser` command.
+pub fn checkup(self: App) kosm.Checkup {
+    _ = self;
+    return .{ .program = .{ .command = "zen-browser" } };
+}
+
 /// Writes the logo, then `profile` with the app's values in the mod wherever the profile's own
 /// are null.
 pub fn apply(self: App, output: *kosm.Output) !void {
